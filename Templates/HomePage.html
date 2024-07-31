@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            background-image: url('/static/log-covid-brain-changes-neurosicence.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-position: center;
+        }
+
+        .container {
+            text-align: center;
+            border: 2px solid #000;
+            border-radius: 10px;
+            padding: 40px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .platform-option {
+            display: flex;
+            align-items: center;
+            border: 2px solid #000;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 20px 0;
+            cursor: pointer;
+            width: 500px;
+            height: 150px;
+            justify-content: center;
+            background-color: #f9f9f9;
+            overflow: hidden;
+        }
+
+        .platform-option img {
+            width: 120px;
+            height: 120px;
+            margin-right: 20px;
+            border-radius: 20px;
+            object-fit: cover;
+        }
+
+        .platform-option label {
+            font-size: 1.5em;
+        }
+
+        .platform-option:hover {
+            background-color: #e0e0e0;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+        .back-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 10px 20px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .back-button:hover {
+            background-color: darkred;
+        }
+    </style>
+    <script>
+        function redirectTo(platform) {
+            if (platform === 'platform1') {
+                window.location.href = '/filters1'; // Updated URL
+            } else if (platform === 'platform2') {
+                window.location.href = '/filters2'; // Updated URL
+            }
+        }
+        function goBack() {
+            window.location.href = '/';
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome Researcher</h1>
+        <button type="button" onclick="goBack()" class="back-button">Back</button>
+        <h2>Select a Platform</h2>
+        <div class="platform-option" onclick="redirectTo('platform1')">
+            <img src="/static/Filter1.png" alt="Platform 1 Image">
+            <label for="platform1">Subjects/paths data filter</label>
+        </div>
+        <div class="platform-option" onclick="redirectTo('platform2')">
+            <img src="/static/Filters2.png" alt="Platform 2 Image">
+            <label for="platform2">Subjects IDs and Paths filter</label>
+        </div>
+    </div>
+</body>
+</html>

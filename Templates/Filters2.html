@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Filters</title>
+    <style>
+        /* General styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('/static/Regional-Neurological_Brain-Science.jpeg');
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .row label {
+            flex: 1 1 45%;
+            margin-right: 10px;
+        }
+        .row label:last-child {
+            margin-right: 0;
+        }
+        select, input[type="number"] {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .gender-row {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .gender-label {
+            flex: 1 1 30%;
+            margin-right: 0px;
+        }
+        .gender-options {
+            flex: 1 1 30%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            justify-items: center;
+            margin-right: 250px;
+        }
+        .gender-options label {
+            text-align: center;
+        }
+        /* Button container styles */
+        .button-container {
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically */
+            gap: 10px; /* Space between buttons */
+            margin-top: 10px;
+            margin-left: 0px;
+            margin-right: 60px;/* Adjusted to move buttons to the left */
+        }
+        /* Button styles */
+        .button {
+            width: 50px;
+            height: 50px;
+            padding: 5px 10px;
+            font-size: 16px;
+            text-align: center;
+            background-color: white;
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .back-button {
+            position: absolute;
+            top: 10px;
+            left: 0px;
+            padding: 10px 20px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .back-button:hover {
+            background-color: darkred;
+        }
+        /* Additional styles */
+        #selected-codes {
+            display: block;
+            width: 80px;
+            height: 70px;
+            padding: 5px;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            overflow-y: auto;
+            resize: none;
+            margin-top: 0px;
+            margin-left: auto; /* Move to the right */
+        }
+        select[name="patientcode[]"] {
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Filters
+        <button type="button" onclick="goBack()" class="back-button">Back</button>
+    </h1>
+    <form method="POST" action="/" onsubmit="prepareFormSubmission()">
+        <fieldset class="row">
+            <legend>Protocols filters</legend>
+            {% for scan_type in scan_types %}
+                <label>{{ scan_type }}
+                    <input type="checkbox" name="{{ scan_type }}" value="OK">
+                </label>
+            {% endfor %}
+        </fieldset>
+        <fieldset class="row">
+            <legend>Scan filters</legend>
+            <label>Start Date <input type="date" name="start_date_of_scan"></label>
+            <label>End Date <input type="date" name="end_date_of_scan"></label>
+            <label>Start Hour
+                <input type="time" name="start_hour_of_scan" step="3600" list="hours">
+                <datalist id="hours">
+                    {% for hour in range(24) %}
+                        <option value="{{ '%02d:00'|format(hour) }}">
+                    {% endfor %}
+                </datalist>
+            </label>
+            <label>End Hour
+                <input type="time" name="end_hour_of_scan" step="3600" list="hours">
+            </label>
+            <label>Scan no.
+                <select name="scan_no">
+                    <option value="">Select Scan no</option>
+                    {% for scanno in scan_numbers %}
+                        <option value="{{ scanno }}">{{ scanno }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </fieldset>
+        <fieldset class="row">
+            <legend>Subject details filters</legend>
+            <div style="display: flex; flex-wrap: wrap;">
+                <label style="flex: 1 1 45%;">From age <input type="number" name="age_from"></label>
+                <label style="flex: 1 1 45%;">To age <input type="number" name="age_to"></label>
+            </div>
+            <div style="display: flex; flex-wrap: wrap;">
+                <label style="flex: 1 1 45%;">From Height (cm)<input type="number" name="height_from"></label>
+                <label style="flex: 1 1 45%;">To Height (cm)<input type="number" name="height_to"></label>
+                <label style="flex: 1 1 45%;">From Weight (kg)<input type="number" name="weight_from"></label>
+                <label style="flex: 1 1 45%;">To Weight (kg)<input type="number" name="weight_to"></label>
+            </div>
+            <label>Study
+                <select name="study">
+                    <option value="">Select Study</option>
+                    {% for study in studies %}
+                        <option value="{{ study }}">{{ study }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Group
+                <select name="group">
+                    <option value="">Select Group</option>
+                    {% for group_name in group_names %}
+                        <option value="{{ group_name }}">{{ group_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Condition
+                <select name="condition">
+                    <option value="">Select Condition</option>
+                    {% for condition in conditions %}
+                        <option value="{{ condition }}">{{ condition }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="gender-row">
+                <div class="gender-label">Gender</div>
+                <div class="gender-options">
+                    <label>M <input type="radio" name="gender" value="Male" ondblclick="resetGenderOption(this)"></label>
+                    <label>F <input type="radio" name="gender" value="Female" ondblclick="resetGenderOption(this)"></label>
+                    <label>O <input type="radio" name="gender" value="Other" ondblclick="resetGenderOption(this)"></label>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="row">
+            <legend>Subject IDs Filters</legend>
+            <label>
+                Subjects IDs
+                <input type="text" id="patient-search" onkeyup="filterPatientCodes()" placeholder="Search for subject ID..">
+                <select name="patientcode[]" multiple style="width: 50%; height: 100px;">
+                    {% for code in patient_codes %}
+                        <option value="{{ code }}">{{ code }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="button-container">
+                <button type="button" onclick="addSelectedCodesToDiv()" class="button"> &gt; </button>
+                <button type="button" onclick="deleteSelectedCodes()" class="button"> &lt; </button>
+            </div>
+            <legend>Selected Subjects IDs
+                <select id="selected-codes" name="selected_patient_codes" multiple style="width: 100%; height: 100px;"></select>
+            </legend>
+        </fieldset>
+        <input type="hidden" name="all_selected_patient_codes" id="all_selected_patient_codes">
+        <button type="button" id="exportButton">Export to Excel</button>
+    </form>
+
+<script>
+    console.log("Script loaded");
+
+    function resetGenderOptions() {
+        const genderRadios = document.querySelectorAll('input[type="radio"][name="gender"]');
+        genderRadios.forEach(radio => radio.checked = false);
+        updatePatientCodes();
+    }
+
+    function resetGenderOption(element) {
+        element.checked = false;
+        updatePatientCodes();
+    }
+
+    function addSelectedCodesToDiv() {
+        const patientSelect = document.querySelector('select[name="patientcode[]"]');
+        const selectedCodes = document.getElementById('selected-codes');
+
+        Array.from(patientSelect.selectedOptions).forEach(option => {
+            if (!Array.from(selectedCodes.options).some(selected => selected.value === option.value)) {
+                selectedCodes.add(new Option(option.text, option.value));
+            }
+            patientSelect.remove(option.index);
+        });
+
+        sortSelect(selectedCodes);
+        sortSelect(patientSelect);
+    }
+
+    function deleteSelectedCodes() {
+        const selectedCodes = document.getElementById('selected-codes');
+        const patientSelect = document.querySelector('select[name="patientcode[]"]');
+
+        Array.from(selectedCodes.selectedOptions).forEach(option => {
+            if (!Array.from(patientSelect.options).some(selected => selected.value === option.value)) {
+                patientSelect.add(new Option(option.text, option.value));
+            }
+            selectedCodes.remove(option.index);
+        });
+
+        sortSelect(patientSelect);
+    }
+
+    function sortSelect(selectElement) {
+        const options = Array.from(selectElement.options);
+        options.sort((a, b) => a.text.localeCompare(b.text));
+        selectElement.innerHTML = '';
+        options.forEach(option => selectElement.appendChild(option));
+    }
+
+    function filterPatientCodes() {
+        const input = document.getElementById('patient-search');
+        const filter = input.value.toUpperCase();
+        const select = document.querySelector('select[name="patientcode[]"]');
+        const options = select.options;
+
+        for (let i = 0; i < options.length; i++) {
+            const txtValue = options[i].textContent || options[i].innerText;
+            options[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+        }
+    }
+
+    function updatePatientCodes() {
+        const formData = new FormData(document.querySelector('form'));
+
+        document.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
+            formData.set(checkbox.name, checkbox.checked ? 'OK' : '');
+        });
+
+        fetch('/get_filtered_patient_codes', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(patientCodes => {
+            console.log("Received patient codes:", patientCodes);
+            const patientSelect = document.querySelector('select[name="patientcode[]"]');
+            const selectedCodes = document.getElementById('selected-codes');
+
+            // Clear the selected codes
+            selectedCodes.innerHTML = '';
+
+            patientSelect.innerHTML = '';
+            patientCodes.forEach(code => {
+                patientSelect.add(new Option(code, code));
+            });
+            console.log("Patient codes updated and selected codes cleared");
+        })
+        .catch(error => console.error('Error updating patient codes:', error));
+    }
+
+    function prepareFormSubmission() {
+        const selectedCodes = document.getElementById('selected-codes');
+        const allSelectedCodesInput = document.getElementById('all_selected_patient_codes');
+
+        const allSelectedCodes = Array.from(selectedCodes.options).map(option => option.value);
+        allSelectedCodesInput.value = JSON.stringify(allSelectedCodes);
+
+        Array.from(selectedCodes.options).forEach(option => option.selected = true);
+    }
+
+    function exportToExcel() {
+        prepareFormSubmission();
+
+        const formData = new FormData(document.querySelector('form'));
+
+        fetch('/export', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'filtered_results.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        })
+        .catch(error => {
+            console.error('Error exporting to Excel:', error);
+            alert('No data found. Please try again.');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM loaded, adding event listeners");
+        const elementsToWatch = [
+            ...document.querySelectorAll('select:not([name="patientcode[]"]):not(#selected-codes)'),
+            ...document.querySelectorAll('input[type="radio"], input[type="number"], input[type="date"], input[type="time"], input[type="checkbox"]')
+        ];
+
+        elementsToWatch.forEach(element => {
+            element.addEventListener('change', () => {
+                updatePatientCodes();
+                // Clear the selected codes when a filter changes
+                document.getElementById('selected-codes').innerHTML = '';
+            });
+            console.log("Added event listener to", element);
+        });
+
+        document.getElementById('exportButton').addEventListener('click', exportToExcel);
+
+        // Initial update of patient codes
+        updatePatientCodes();
+
+    });
+    function goBack() {
+           window.location.href = '/HomePage';
+     }
+</script>
+</body>
+</html>
