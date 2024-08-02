@@ -7,7 +7,14 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.11"
 flask = "^2.0"
-# Add other dependencies here
+gunicorn = "^20.1"  # WSGI server for running the app
+requests = "^2.28"  # HTTP library (if you need to make requests)
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1"  # Testing framework
+flake8 = "^6.0"  # Linting tool
+black = "^23.3"  # Code formatter
+mypy = "^1.4"  # Static type checker
 
 [build-system]
 requires = ["poetry-core"]
