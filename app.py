@@ -12,7 +12,7 @@ import datetime
 import re
 from openpyxl.styles import Font, PatternFill
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.abspath('Templates'))
 app.secret_key = 'your_secret_key'  # Required for flash messaging
 
 # Database connection settings
