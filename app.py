@@ -19,11 +19,11 @@ app.secret_key = 'your_secret_key'  # Required for flash messaging
 
 # Database connection settings
 DB_CONFIG = {
-    "user": os.getenv("user"),
-    "password": os.getenv("password"),
-    "host": os.getenv("host"),
-    "port": os.getenv("port"),
-    "database": os.getenv("databse")
+    "user": 'tomer',
+    "password": 't1',
+    "host": '132.66.42.8',
+    "port": '5433',
+    "database":'appData'
 }
 
 # Mapping between application and database column names
