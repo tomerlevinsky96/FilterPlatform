@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask import Response
 import pandas as pd
@@ -11,11 +13,10 @@ from io import BytesIO
 import datetime
 import re
 from openpyxl.styles import Font, PatternFill
-import os
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Required for flash messaging
-
+app.root_path = os.path.dirname(os.path.abspath(__file__))
 # Database connection settings
 DB_CONFIG = {
     "user": os.getenv("user"),
