@@ -16,7 +16,7 @@ from openpyxl.styles import Font, PatternFill
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Required for flash messaging
-app.root_path = os.path.abspath(os.path.dirname(__file__))
+app.root_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 # Database connection settings
 DB_CONFIG = {
     "user": os.getenv("user"),
