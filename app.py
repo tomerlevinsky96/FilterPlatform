@@ -13,16 +13,16 @@ import re
 from openpyxl.styles import Font, PatternFill
 import os
 
-app = Flask(__name__, template_folder=os.path.abspath('Templates'))
+app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Required for flash messaging
 
 # Database connection settings
 DB_CONFIG = {
-    "user": "tomer",
-    "password": "t1",
-    "host": "localhost",
-    "port": "5433",
-    "database": "appData"
+    "user": os.getenv("user"),
+    "password": os.getenv("password"),
+    "host": os.getenv("host"),
+    "port": os.getenv("port"),
+    "database": os.getenv("databse")
 }
 
 # Mapping between application and database column names
@@ -723,4 +723,4 @@ def OptionPage():
     return render_template('HomePage.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run()
