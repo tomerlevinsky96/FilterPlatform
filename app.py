@@ -1,5 +1,5 @@
 import os
-
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask import Response
 import pandas as pd
@@ -16,6 +16,7 @@ from openpyxl.styles import Font, PatternFill
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Required for flash messaging
+
 
 # Database connection settings
 DB_CONFIG = {
@@ -257,8 +258,9 @@ def get_filtered_patient_codes():
 
 @app.route('/filters2', methods=['GET', 'POST'])
 def index():
-    connection = connect_to_db()
-    if connection:
+    if session.get('authenticated'):
+      connection = connect_to_db()
+      if connection:
         cursor = connection.cursor()
         cursor.execute("SELECT DISTINCT subjectid FROM crf")
         patient_codes = [row[0] for row in cursor.fetchall()]
@@ -280,7 +282,7 @@ def index():
         Dominant_hand.sort()
         cursor.close()
         connection.close()
-    if request.method == 'POST':
+      if request.method == 'POST':
         selected_patient_codes = request.form.getlist('subjects[]')
         selected_types = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
         selected_genders = request.form.getlist('gender')
@@ -312,8 +314,9 @@ def index():
             else:
                 return render_template('results.html', columns=['path'], results=[], message="No data found.")
 
-    return render_template('Filters2.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
-
+      return render_template('Filters2.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
+    else:
+        return render_template('loginPage.html')
 @app.route('/export', methods=['POST'])
 def export():
     # Get all the form data
@@ -370,9 +373,7 @@ def export():
     # If there are no results or an error occurred
     return Response("No data found or an error occurred", status=400)
 ########## filter1
-@app.route('/filters2', methods=['GET'])
-def index3():
-    return render_template('Filters2.html')
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -514,7 +515,7 @@ def upload_file():
                      ws.append(headers)
                      for code in codes_array:
                        query = f""" SELECT answers.questioneid,answers.answer
-                                    FROM subjects inner join answers on subjects.subjectid=answers.patientcode
+                                    FROM subjects inner join answers on subjects.subjectid=answers.subjectid
                                     WHERE subjects.subjectid = ('{code}') and answers.questioneid IN ({question_ids})
                                 """
                        cur.execute(query)
@@ -535,7 +536,7 @@ def upload_file():
                      ws.append(headers)
                      for code in codes_array:
                         query = f""" SELECT answers.questioneid,answers.answer
-                                        FROM subjects inner join answers on subjects.subjectid=answers.patientcode
+                                        FROM subjects inner join answers on subjects.subjectid=answers.subjectid
                                         inner join crf on subjects.subjectid=crf.subjectid inner join scans on crf.datetimescan=scans.datetimescan
                                         WHERE scans.path = ('{code}') and answers.questioneid IN ({question_ids})
                                     """
@@ -654,12 +655,15 @@ def get_questions():
 
 @app.route('/')
 def index2():
+    session['authenticated'] = False
     return render_template('loginPage.html')
 
 @app.route('/login', methods=['POST'])
 def login():
+
     password = request.form['password']
-    if password == "yoni_hamelech":  # Example check
+    if password == "asgard2014":  # Example check
+        session['authenticated'] = True
         return redirect(url_for('OptionPage'))
     else:
         flash('Incorrect password. Please try again.', 'error')
@@ -667,16 +671,23 @@ def login():
 
 @app.route('/filters1')
 def filters1():
-    return render_template('Filters1.html')
-
-@app.route('/filters2')
-def filters2():
-    return render_template('Filters2.html')
+    if session.get('authenticated'):
+        return render_template('Filters1.html')
+    else:
+        return render_template('loginPage.html')
 
 
 @app.route('/HomePage')
 def OptionPage():
-    return render_template('HomePage.html')
+    if session.get('authenticated'):
+        return render_template('HomePage.html')
+    else:
+        return render_template('loginPage.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run()
+    app.run(ssl_context='adhoc')
