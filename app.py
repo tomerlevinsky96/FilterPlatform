@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask import Response
@@ -210,15 +211,27 @@ def append_and_color_header(worksheet, headers, background_color):
         cell.font = Font(color="000000")  # Black text
 def process_flexible_data(headers, patient_code, data):
     # Create a defaultdict to store all values for each column
-    data = sorted(data, key=lambda x: x[-2])
-    data = [row[:-2] + row[-1:] for row in data]
-    final_row = [patient_code] + list(data[0][:-1])
+    data = sorted(data, key=lambda x: x[0])
 
-    # Append each last element of the rows to final_row
-    for row in data:
-        final_row.append(row[-1])
+    # Group the data by the first element (column index)
+    grouped_data = defaultdict(list)
+    for key, value in data:
+        grouped_data[key].append(value)
 
-    return final_row
+    # Determine the maximum number of repetitions for any key
+    max_repetitions = max(len(values) for values in grouped_data.values())
+
+    # Create the output rows
+    output_rows = [[patient_code] for _ in range(max_repetitions)]
+    for key in sorted(grouped_data):
+        values = grouped_data[key]
+        for i in range(max_repetitions):
+            if i < len(values):
+                output_rows[i].append(values[i])
+            else:
+                output_rows[i].append('')
+
+    return output_rows
 
 
 
@@ -528,7 +541,8 @@ def upload_file():
                            if question_id_temp not in keys:
                                result.append((question_id_temp, 'Nan'))
                        processed_data = process_flexible_data(headers, code, result)
-                       ws.append(processed_data)
+                       for data in processed_data:
+                           ws.append(data)
                    elif detail_type == 'pathScanFile':
                      headers = ["Path Scan File"] + [question[1] for question in questions]
                      ws.append([""])
@@ -544,12 +558,15 @@ def upload_file():
                         result = cur.fetchall()
                         keys = [item[0] for item in result]
                         question_ids_temp = re.findall(r'\d+', question_ids)
-                        # Convert the extracted strings to integers
+
+# Convert the extracted strings to integers
                         question_ids_temp = [int(num) for num in question_ids_temp]
                         for question_id_temp in question_ids_temp:
                           if question_id_temp not in keys:
                               result.append((question_id_temp, 'Nan'))
                         processed_data=process_flexible_data(headers, code, result)
+                        for data in processed_data:
+                            ws.append(data)
                         ws.append(processed_data)
               excel_file = BytesIO()
               wb.save(excel_file)
@@ -623,7 +640,7 @@ def get_questions():
 
                 all_questions = common_questions + custom_questions + education_work_questions + music_questions
                 return jsonify({'questions': all_questions})
-            elif category == 'Patient_details_at_the_time_of_scan':
+            elif category == 'subject_details_at_the_time_of_scan':
                 patient_details = [
                     ('gender', 'Gender (at the time of the scan) '),
                     ('datetimescan', 'Date and time of scan'),
