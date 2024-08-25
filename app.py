@@ -19,7 +19,7 @@ destination_db_config = {
     'password': 't1',
     'host': 'localhost',
     'port': '5433',
-    'database': 'appdb'
+    'database': 'appdata'
 }
 
 def get_columns(table_name, cursor):
