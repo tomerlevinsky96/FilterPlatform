@@ -21,7 +21,10 @@ app.secret_key = 'your_secret_key'  # Required for flash messaging
 
 # Database connection settings
 DB_CONFIG = {
-    "user": 'postgres',
+    "user": 'tomer',
+    "password":'t1',
+    "port": '5433',
+    "host": 'localhost',
     "database":'appdata'
 }
 
@@ -232,7 +235,7 @@ def process_flexible_data(headers, patient_code, data):
 
 
 
-############filters2 routes
+############filters2 routes change to questionaire codes
 
 @app.route('/get_filtered_patient_codes', methods=['POST'])
 def get_filtered_patient_codes():
