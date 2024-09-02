@@ -1,3 +1,4 @@
+import math
 import os
 from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, session
@@ -25,7 +26,7 @@ DB_CONFIG = {
     "password":'t1',
     "port": '5433',
     "host": 'localhost',
-    "database":'appdata'
+    "database":'appdb'
 }
 
 # Mapping between application and database column names
@@ -63,6 +64,12 @@ def connect_to_db():
         return None
 
 ###########################################filter2 functions
+def flatten_values(value):
+    if isinstance(value, tuple):
+        return list(value)  # Convert tuple to list to extend it
+    else:
+        return [value]  # Return value as a list
+
 
 def get_all_columns(connection, table_name):
     try:
@@ -94,7 +101,7 @@ def get_distinct_values(connection, app_column_name):
         print(f"Error fetching distinct values for {app_column_name}:", e)
         return []
 
-def build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,selected_patient_codes,Study,Group,Condition,scan_number,Dominant_hand,update_subjects):
+def build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,selected_patient_codes,Study,Group,Condition,scan_number,Dominant_hand,update_subjects,Data_output):
     where_conditions = []
     params = []
 
@@ -120,17 +127,17 @@ def build_and_execute_query(connection, selected_types, selected_genders, age_fr
 
     # Process age range
     if age_from:
-        where_conditions.append(f"age >= '{age_from}'")
+        where_conditions.append(f"age ~ '^[0-9]*\.?[0-9]+$' and  CAST(age AS NUMERIC)>= '{age_from}'")
     if age_to:
-        where_conditions.append(f"age <= '{age_to}'")
+        where_conditions.append(f"age ~ '^[0-9]*\.?[0-9]+$' and  CAST(age AS NUMERIC)<= '{age_to}'")
     if weight_from:
-        where_conditions.append(f"weightkg >= '{weight_from}'")
+        where_conditions.append(f"weightkg ~ '^[0-9]*\.?[0-9]+$' and CAST(weightkg AS NUMERIC)>='{weight_from}'")
     if weight_to:
-        where_conditions.append(f"weightkg <= '{weight_to}'")
+        where_conditions.append(f"weightkg ~ '^[0-9]*\.?[0-9]+$' and CAST(weightkg AS NUMERIC)<='{weight_to}'")
     if height_from:
-        where_conditions.append(f"heightcm >= '{height_from}'")
+        where_conditions.append(f"heightcm ~ '^[0-9]*\.?[0-9]+$' and CAST(heightcm AS NUMERIC)>= '{height_from}'")
     if height_to:
-        where_conditions.append(f"heightcm <= '{height_to}'")
+        where_conditions.append(f"heightcm ~ '^[0-9]*\.?[0-9]+$' and CAST(heightcm AS NUMERIC)<= '{height_to}'")
     if Study:
         where_conditions.append(f"study = '{Study}'")
     if Group:
@@ -142,34 +149,63 @@ def build_and_execute_query(connection, selected_types, selected_genders, age_fr
     if Dominant_hand:
         where_conditions.append(f"answer = '{Dominant_hand}'")
 
-
-    # Process date and time range of scan
-    if start_date_of_scan and end_date_of_scan:
-        where_conditions.append(f"crf.datetimescan::date BETWEEN '{start_date_of_scan}' AND '{end_date_of_scan}'")
-
-
     if start_date_of_scan and end_date_of_scan and start_hour_of_scan and end_hour_of_scan:
-        where_conditions.append(f"crf.datetimescan::date BETWEEN '{start_date_of_scan}' AND '{end_date_of_scan}' AND crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'")
+        # If all date and time filters are present
+        where_conditions.append(
+            f"crf.datetimescan::date BETWEEN '{start_date_of_scan}' AND '{end_date_of_scan}' AND "
+            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
+        )
 
-    if start_date_of_scan=='' and end_date_of_scan=='' and start_hour_of_scan!='' and end_hour_of_scan!='' :
-        where_conditions.append(f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'")
+    elif start_date_of_scan and end_date_of_scan:
+        # If only date filters are present
+        where_conditions.append(
+            f"crf.datetimescan::date BETWEEN '{start_date_of_scan}' AND '{end_date_of_scan}'"
+        )
 
+    elif start_date_of_scan and not end_date_of_scan and start_hour_of_scan and end_hour_of_scan:
+        # If start date and time filters are present
+        where_conditions.append(
+            f"crf.datetimescan::date >= '{start_date_of_scan}' AND "
+            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
+        )
+
+    elif end_date_of_scan and not start_date_of_scan and start_hour_of_scan and end_hour_of_scan:
+        # If end date and time filters are present
+        where_conditions.append(
+            f"crf.datetimescan::date <= '{end_date_of_scan}' AND "
+            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
+        )
+
+    elif start_hour_of_scan and end_hour_of_scan:
+        # If only time filters are present
+        where_conditions.append(
+            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
+        )
+
+    elif start_date_of_scan:
+        # If only start date is present
+        where_conditions.append(f"crf.datetimescan::date >= '{start_date_of_scan}'")
+
+    elif end_date_of_scan:
+        # If only end date is present
+        where_conditions.append(f"crf.datetimescan::date <= '{end_date_of_scan}'")
 
     # Process selected patient codes
-    if update_subjects == 'No':
+    if update_subjects == 'no':
       if selected_patient_codes:
           patient_condition = f"subjects.questionairecode IN ({', '.join(map(repr, selected_patient_codes))})"
           where_conditions.append(patient_condition)
 
       if not where_conditions:
          return None
-    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
+
+    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     # Include the "path" column in the output
     if update_subjects=='yes':
        columns = f"""distinct(subjects.questionairecode)"""
-    else:
-       columns =f"""distinct(subjects.questionairecode),scans.path"""
+    if update_subjects=='no':
+        columns = ', '.join(column.strip("'") for column in Data_output)
 
     if Dominant_hand:
           query = f"""
@@ -235,7 +271,7 @@ def process_flexible_data(headers, patient_code, data):
 
 
 
-############filters2 routes change to questionaire codes
+############search_scans routes change to questionaire codes
 
 @app.route('/get_filtered_patient_codes', methods=['POST'])
 def get_filtered_patient_codes():
@@ -263,13 +299,13 @@ def get_filtered_patient_codes():
     protocols = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
     connection = connect_to_db()
     if connection:
-        patient_codes = build_and_execute_query(connection, protocols,gender, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,' ',study,group,condition,scan_no,Dominant_hand,'yes')
+        patient_codes = build_and_execute_query(connection, protocols,gender, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,' ',study,group,condition,scan_no,Dominant_hand,'yes','NULL')
         patient_codes.sort()
         print("Returning patient codes:", patient_codes)
         return jsonify(patient_codes)
     return jsonify([])
 
-@app.route('/filters2', methods=['GET', 'POST'])
+@app.route('/search_scans', methods=['GET', 'POST'])
 def index():
     if session.get('authenticated'):
       connection = connect_to_db()
@@ -315,11 +351,10 @@ def index():
         scan_number = request.form.get('scan_no')
         selected_patient_codes = request.form.getlist('selected_patient_codes')
         Dominant_hand = request.form.getlist('Dominant_hand')
-
         connection = connect_to_db()
         if connection:
             all_columns = get_all_columns(connection, "scans")
-            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Condition,scan_number,Dominant_hand[0])
+            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Condition,scan_number,Dominant_hand[0],'NULL')
             connection.close()
 
             if results:
@@ -327,13 +362,24 @@ def index():
             else:
                 return render_template('results.html', columns=['path'], results=[], message="No data found.")
 
-      return render_template('Filters2.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
+      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
     else:
         return render_template('loginPage.html')
+
+
+
+
 @app.route('/export', methods=['POST'])
 def export():
     # Get all the form data
-    selected_types = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
+    file = request.files.get('file')
+    selected_types = {}
+    for scan_type in SCAN_TYPES:
+        values = request.form.getlist(scan_type)
+        if values:
+            selected_types[scan_type] = values[0]
+        else:
+            selected_types[scan_type] = ''
     if request.form.getlist('gender'):
        selected_genders = request.form.getlist('gender')[0]
     else:
@@ -358,30 +404,46 @@ def export():
     else:
         Dominant_hand = request.form.getlist('Dominant_hand')
     # Connect to the database and get results
+    fields = ['Gender', 'crf.datetimescan', 'Age', 'weightkg', 'heightcm', 'Study', 'Condition','Group','Dominant hand','bidspath','resultspath','rawdatapath']
+    Data_output=[]
+    # Iterate through each field
+    for field in fields:
+        value = request.form.get(field)  # Get the value from the form
+        if value=='Dominant hand':
+            Dominant_hand='Dominant hand'
+        elif value and value != 'None':  # Check if it's not None or 'None'
+            Data_output.append(value)  # Append to the output list
+
     connection = connect_to_db()
     if connection:
-        all_columns = get_all_columns(connection, "scans")
-        results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to,
-                                          start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan,
-                                          weight_from, weight_to, height_from, height_to, selected_patient_codes, Study, Group, Condition, scan_number,Dominant_hand,'No')
-        connection.close()
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Results"
+        # Write headers
+        headers = ["Questionaire Code"] + [column for column in Data_output]
+        ws.append(headers)
+        for code in selected_patient_codes:
+            newcode=[]
+            newcode.append(code)
+            result = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to,
+                                              start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan,
+                                              weight_from, weight_to, height_from, height_to,newcode, Study, Group, Condition, scan_number,Dominant_hand,'no',Data_output)
 
-        if results:
-            # Create a DataFrame from the results
-            df = pd.DataFrame(results, columns=['Subject ID', 'Path'])
+            if result:
+
+                    cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                    ws.append([code] + cleaned_result)
 
             # Create an Excel file in memory
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False, sheet_name='Filtered Results')
-
-            # Prepare the response
-            output.seek(0)
-            return Response(
-                output,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                headers={'Content-Disposition': 'attachment;filename=filtered_results.xlsx'}
-            )
+        excel_file = BytesIO()
+        wb.save(excel_file)
+        excel_file.seek(0)
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='results.xlsx'
+        )
 
     # If there are no results or an error occurred
     return Response("No data found or an error occurred", status=400)
@@ -504,7 +566,7 @@ def upload_file():
                       for code in codes_array:
                           query = f""" SELECT {select_columns_str}
                                        FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode inner join scans on crf.datetimescan=scans.datetimescan
-                                       WHERE scans.path = ('{code}')
+                                       WHERE scans.rawdatapath = ('{code}')
                                  """
                           cur.execute(query)
                           result = cur.fetchone()
@@ -552,7 +614,7 @@ def upload_file():
                         query = f""" SELECT answers.questioneid,answers.answer
                                         FROM subjects inner join answers on subjects.questionairecode=answers.questionairecode
                                         inner join crf on subjects.questionairecode=crf.questionairecode inner join scans on crf.datetimescan=scans.datetimescan
-                                        WHERE scans.path = ('{code}') and answers.questioneid IN ({question_ids})
+                                        WHERE scans.rawdatapath = ('{code}') and answers.questioneid IN ({question_ids})
                                     """
                         cur.execute(query)
                         result = cur.fetchall()
@@ -686,10 +748,10 @@ def login():
         flash('Incorrect password. Please try again.', 'error')
         return redirect(url_for('index'))
 
-@app.route('/filters1')
+@app.route('/Get_additinal_information')
 def filters1():
     if session.get('authenticated'):
-        return render_template('Filters1.html')
+        return render_template('Get_additinal_information.html')
     else:
         return render_template('loginPage.html')
 
