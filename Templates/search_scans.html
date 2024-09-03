@@ -249,7 +249,7 @@
             <legend>Subject IDs Filters</legend>
             <div style="margin-bottom: 20px;">
                  <label><input type="checkbox" name="Gender" value="Gender">Gender</label>
-                 <label><input type="checkbox" name="crf.datetimescan"   value="crf.datetimescan"> Date</label>
+                 <label><input type="checkbox" name="crf.datetimescan" value="crf.datetimescan">Date of scan</label>
                  <label><input type="checkbox" name="Age" value="Age">Age</label>
                  <label><input type="checkbox" name="weightkg" value="weightkg">Weight</label>
                  <label><input type="checkbox" name="heightcm" value="heightcm">Height</label>
@@ -264,190 +264,201 @@
     </fieldset>
     </form>
 <script>
-    console.log("Script loaded");
+console.log("Script loaded");
 
-    function resetGenderOptions() {
-        const genderRadios = document.querySelectorAll('input[type="radio"][name="gender"]');
-        genderRadios.forEach(radio => radio.checked = false);
-        updatePatientCodes();
-    }
+function resetGenderOptions() {
+    const genderRadios = document.querySelectorAll('input[type="radio"][name="gender"]');
+    genderRadios.forEach(radio => radio.checked = false);
+    updatePatientCodes();
+}
 
-    function resetGenderOption(element) {
-        element.checked = false;
-        updatePatientCodes();
-    }
+function resetGenderOption(element) {
+    element.checked = false;
+    updatePatientCodes();
+}
 
-    function addSelectedCodesToDiv() {
-        const patientSelect = document.querySelector('select[name="patientcode[]"]');
-        const selectedCodes = document.getElementById('selected-codes');
+function addSelectedCodesToDiv() {
+    const patientSelect = document.querySelector('select[name="patientcode[]"]');
+    const selectedCodes = document.getElementById('selected-codes');
 
-        Array.from(patientSelect.selectedOptions).forEach(option => {
-            if (!Array.from(selectedCodes.options).some(selected => selected.value === option.value)) {
-                selectedCodes.add(new Option(option.text, option.value));
-            }
-            patientSelect.remove(option.index);
-        });
-
-        sortSelect(selectedCodes);
-        sortSelect(patientSelect);
-        updateSubjectCount();
-        updateSelectedSubjectCount(); // Call to update selected subject count
-    }
-
-    function deleteSelectedCodes() {
-        const selectedCodes = document.getElementById('selected-codes');
-        const patientSelect = document.querySelector('select[name="patientcode[]"]');
-
-        Array.from(selectedCodes.selectedOptions).forEach(option => {
-            if (!Array.from(patientSelect.options).some(selected => selected.value === option.value)) {
-                patientSelect.add(new Option(option.text, option.value));
-            }
-            selectedCodes.remove(option.index);
-        });
-
-        sortSelect(patientSelect);
-        updateSubjectCount();
-        updateSelectedSubjectCount(); // Call to update selected subject count
-    }
-
-    function sortSelect(selectElement) {
-        const options = Array.from(selectElement.options);
-        options.sort((a, b) => a.text.localeCompare(b.text));
-        selectElement.innerHTML = '';
-        options.forEach(option => selectElement.appendChild(option));
-    }
-
-    function filterPatientCodes() {
-        const input = document.getElementById('patient-search');
-        const filter = input.value.toUpperCase();
-        const select = document.querySelector('select[name="patientcode[]"]');
-        const options = select.options;
-
-        for (let i = 0; i < options.length; i++) {
-            const txtValue = options[i].textContent || options[i].innerText;
-            options[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+    Array.from(patientSelect.selectedOptions).forEach(option => {
+        if (!Array.from(selectedCodes.options).some(selected => selected.value === option.value)) {
+            selectedCodes.add(new Option(option.text, option.value));
         }
+        patientSelect.remove(option.index);
+    });
+
+    sortSelect(selectedCodes);
+    sortSelect(patientSelect);
+    updateSubjectCount();
+    updateSelectedSubjectCount(); // Call to update selected subject count
+}
+
+function deleteSelectedCodes() {
+    const selectedCodes = document.getElementById('selected-codes');
+    const patientSelect = document.querySelector('select[name="patientcode[]"]');
+
+    Array.from(selectedCodes.selectedOptions).forEach(option => {
+        if (!Array.from(patientSelect.options).some(selected => selected.value === option.value)) {
+            patientSelect.add(new Option(option.text, option.value));
+        }
+        selectedCodes.remove(option.index);
+    });
+
+    sortSelect(patientSelect);
+    updateSubjectCount();
+    updateSelectedSubjectCount(); // Call to update selected subject count
+}
+
+function sortSelect(selectElement) {
+    const options = Array.from(selectElement.options);
+    options.sort((a, b) => a.text.localeCompare(b.text));
+    selectElement.innerHTML = '';
+    options.forEach(option => selectElement.appendChild(option));
+}
+
+function filterPatientCodes() {
+    const input = document.getElementById('patient-search');
+    const filter = input.value.toUpperCase();
+    const select = document.querySelector('select[name="patientcode[]"]');
+    const options = select.options;
+
+    for (let i = 0; i < options.length; i++) {
+        const txtValue = options[i].textContent || options[i].innerText;
+        options[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
     }
+}
 
-    function updatePatientCodes() {
-        const formData = new FormData(document.querySelector('form'));
+function updatePatientCodes() {
+    const formData = new FormData(document.querySelector('form'));
 
-        document.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
+    // Get checkboxes within the "Subject IDs Filters" section to be ignored
+    const ignoredCheckboxes = document.querySelectorAll('fieldset.row:nth-of-type(6) input[type="checkbox"][name]');
+
+    // Loop through all checkboxes in the form
+    document.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
+        // If the checkbox is not in the ignored section, update its value
+        if (!Array.from(ignoredCheckboxes).includes(checkbox)) {
             formData.set(checkbox.name, checkbox.checked ? 'OK' : '');
-        });
+        }
+    });
 
-        fetch('/get_filtered_patient_codes', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(patientCodes => {
-            console.log("Received patient codes:", patientCodes);
-            const patientSelect = document.querySelector('select[name="patientcode[]"]');
-            const selectedCodes = document.getElementById('selected-codes');
-
-            // Clear the selected codes
-            selectedCodes.innerHTML = '';
-
-            patientSelect.innerHTML = '';
-            patientCodes.forEach(code => {
-                patientSelect.add(new Option(code, code));
-            });
-            console.log("Patient codes updated and selected codes cleared");
-            updateSubjectCount();
-        })
-        .catch(error => console.error('Error updating patient codes:', error));
-    }
-
-    function updateSelectedSubjectCount() {
-        const selectedCodes = document.getElementById('selected-codes');
-        const count = selectedCodes.options.length;
-        document.getElementById('selected-subject-count').value = count;
-    }
-
-    function prepareFormSubmission() {
-        const selectedCodes = document.getElementById('selected-codes');
-        const allSelectedCodesInput = document.getElementById('all_selected_patient_codes');
-
-        const allSelectedCodes = Array.from(selectedCodes.options).map(option => option.value);
-        allSelectedCodesInput.value = JSON.stringify(allSelectedCodes);
-
-        Array.from(selectedCodes.options).forEach(option => option.selected = true);
-    }
-
-    function exportToExcel() {
-        prepareFormSubmission();
-
-        const formData = new FormData(document.querySelector('form'));
-
-        fetch('/export', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.blob();
-        })
-        .then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'filtered_results.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        })
-        .catch(error => {
-            console.error('Error exporting to Excel:', error);
-            alert('No data found. Please try again.');
-        });
-    }
-
-    function updateSubjectCount() {
+    fetch('/get_filtered_patient_codes', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(patientCodes => {
+        console.log("Received patient codes:", patientCodes);
         const patientSelect = document.querySelector('select[name="patientcode[]"]');
         const selectedCodes = document.getElementById('selected-codes');
-        const totalSubjects = patientSelect.options.length + selectedCodes.options.length;
-        document.getElementById('subject-count').value = totalSubjects;
-    }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM loaded, adding event listeners");
-        const elementsToWatch = [
-            ...document.querySelectorAll('select:not([name="patientcode[]"]):not(#selected-codes)'),
-            ...document.querySelectorAll('input[type="radio"], input[type="number"], input[type="date"], input[type="time"]')
-        ];
+        // Clear the selected codes
+        selectedCodes.innerHTML = '';
 
-        elementsToWatch.forEach(element => {
-            element.addEventListener('change', () => {
+        patientSelect.innerHTML = '';
+        patientCodes.forEach(code => {
+            patientSelect.add(new Option(code, code));
+        });
+        console.log("Patient codes updated and selected codes cleared");
+        updateSubjectCount();
+    })
+    .catch(error => console.error('Error updating patient codes:', error));
+}
+
+function updateSelectedSubjectCount() {
+    const selectedCodes = document.getElementById('selected-codes');
+    const count = selectedCodes.options.length;
+    document.getElementById('selected-subject-count').value = count;
+}
+
+function prepareFormSubmission() {
+    const selectedCodes = document.getElementById('selected-codes');
+    const allSelectedCodesInput = document.getElementById('all_selected_patient_codes');
+
+    const allSelectedCodes = Array.from(selectedCodes.options).map(option => option.value);
+    allSelectedCodesInput.value = JSON.stringify(allSelectedCodes);
+
+    Array.from(selectedCodes.options).forEach(option => option.selected = true);
+}
+
+function exportToExcel() {
+    prepareFormSubmission();
+
+    const formData = new FormData(document.querySelector('form'));
+
+    fetch('/export', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'filtered_results.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    })
+    .catch(error => {
+        console.error('Error exporting to Excel:', error);
+        alert('No data found. Please try again.');
+    });
+}
+
+function updateSubjectCount() {
+    const patientSelect = document.querySelector('select[name="patientcode[]"]');
+    const selectedCodes = document.getElementById('selected-codes');
+    const totalSubjects = patientSelect.options.length + selectedCodes.options.length;
+    document.getElementById('subject-count').value = totalSubjects;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, adding event listeners");
+
+    // Add event listeners for all input elements except the subject ID checkboxes
+    const elementsToWatch = [
+        ...document.querySelectorAll('select:not([name="patientcode[]"]):not(#selected-codes)'),
+        ...document.querySelectorAll('input[type="radio"], input[type="number"], input[type="date"], input[type="time"], input[type="checkbox"]:not(fieldset.row:nth-of-type(6) input[type="checkbox"])')
+    ];
+
+    elementsToWatch.forEach(element => {
+        element.addEventListener('change', () => {
+            if (element.closest('fieldset.row') && !element.closest('fieldset.row:nth-of-type(6)')) {
                 updatePatientCodes();
                 // Clear the selected codes when a filter changes
                 document.getElementById('selected-codes').innerHTML = '';
                 updateSelectedSubjectCount();  // Call to update selected subject count
-            });
-            console.log("Added event listener to", element);
+            }
         });
-
-        // Exclude checkboxes from "Subject IDs Filters" from triggering patient code updates
-        const subjectIdCheckboxes = document.querySelectorAll('fieldset.row:nth-of-type(6) input[type="checkbox"]');
-        subjectIdCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
-                console.log("Checkbox in 'Subject IDs Filters' changed, no update triggered.");
-            });
-        });
-
-        document.getElementById('exportButton').addEventListener('click', exportToExcel);
-
-        // Initial update of patient codes and subject count
-        updatePatientCodes();
-        updateSubjectCount();
-        updateSelectedSubjectCount(); // Call to ensure count is correct on load
+        console.log("Added event listener to", element);
     });
 
-    function goBack() {
-        window.location.href = '/HomePage';
-    }
+    // Exclude checkboxes from "Subject IDs Filters" from triggering patient code updates
+    const subjectIdCheckboxes = document.querySelectorAll('fieldset.row:nth-of-type(6) input[type="checkbox"]');
+    subjectIdCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            console.log("Checkbox in 'Subject IDs Filters' changed, no update triggered.");
+        });
+    });
+
+    document.getElementById('exportButton').addEventListener('click', exportToExcel);
+
+    // Initial update of patient codes and subject count
+    updatePatientCodes();
+    updateSubjectCount();
+    updateSelectedSubjectCount(); // Call to ensure count is correct on load
+  });
+
+  function goBack() {
+    window.location.href = '/HomePage';
+  }
 </script>
 </body>
 </html>

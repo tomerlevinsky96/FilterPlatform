@@ -415,7 +415,7 @@ def export():
             Data_output.append(value)  # Append to the output list
 
     connection = connect_to_db()
-    if connection:
+    if connection and selected_patient_codes:
         wb = Workbook()
         ws = wb.active
         ws.title = "Results"
@@ -445,7 +445,6 @@ def export():
             download_name='results.xlsx'
         )
 
-    # If there are no results or an error occurred
     return Response("No data found or an error occurred", status=400)
 ########## filter1
 
