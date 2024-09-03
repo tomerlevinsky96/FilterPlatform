@@ -119,7 +119,37 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+         }
+        .add-button {
+          width: 500px;
+          height: 50px;
+          padding: 5px 10px;
+          font-size: 16px;
+          text-align: center;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
         }
+
+       /* Remove button styles */
+      .remove-button {
+         width: 500px;
+         height: 50px;
+         padding: 5px 10px;
+         font-size: 16px;
+         text-align: center;
+         background-color: #f44336; /* Red background */
+         color: white;
+         border: none;
+         border-radius: 5px;
+         cursor: pointer;
+         transition: background-color 0.3s ease;
+        }
+
+
+
+
         .back-button:hover {
             background-color: darkred;
         }
@@ -260,11 +290,85 @@
                  <label><input type="checkbox" name="rawdatapath" value="rawdatapath">raw data path</label>
                  <label><input type="checkbox" name="Dominant hand" value="Dominant hand">Dominant hand</label>
             </div>
-        <button type="button" id="exportButton">Export to Excel</button>
+            <legend>Questions from the Questionnaire</legend>
+            <select name="all_questions[]" id="questions-select" multiple>
+                {% for question in all_questions %}
+                  <option value="{{ question }}">{{ loop.index }}. {{ question }}</option>
+                {% endfor %}
+            </select>
+            <div class="add-button">
+                <button type="button" onclick="addSelectedQuestions()" class="button">&#9660;</button>
+                <button type="button" onclick="removeSelectedQuestions()" class="button">&#9650;</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <legend>Selected Questions</legend>
+                <select id="selected-questions" multiple style="width: 560px; height: 100px; overflow: auto;"></select>
+           </div>
+           <div style="margin-top: 10px;">
+              <button type="button" id="exportButton">Export to Excel</button>
+           </div>
     </fieldset>
     </form>
 <script>
 console.log("Script loaded");
+    function reorderQuestions(selectElement) {
+      const options = Array.from(selectElement.options);
+
+      // Sort options by text to keep them in the original order
+      options.sort((a, b) => a.text.localeCompare(b.text));
+
+      // Clear the current options
+      selectElement.innerHTML = '';
+
+      // Re-add options with new numbering
+      options.forEach((option, index) => {
+        option.text = `${index + 1}. ${option.text.split('. ')[1] || option.text}`;
+        selectElement.add(option);
+    });
+   }
+
+
+
+
+
+
+
+   function addSelectedQuestions() {
+        const selectedWindow = document.getElementById('selected-questions');
+        const questionsList = document.getElementById('questions-select');
+        const selectedQuestions = [];
+
+        // Iterate through the list and find selected questions
+        for (let i = 0; i < questionsList.options.length; i++) {
+            if (questionsList.options[i].selected) {
+                const question = questionsList.options[i].text;
+                selectedQuestions.push(question);
+            }
+        }
+
+        // Append selected questions to the selected window without removing from the original list
+        selectedQuestions.forEach(question => {
+            const newOption = document.createElement('option');
+            newOption.text = question;
+            selectedWindow.add(newOption);
+        });
+
+        reorderQuestions(selectedWindow);
+    }
+
+    function removeSelectedQuestions() {
+        const selectedWindow = document.getElementById('selected-questions');
+
+        // Remove selected questions from the selected window only
+        const selectedOptions = Array.from(selectedWindow.options);
+        selectedOptions.forEach(option => {
+            if (option.selected) {
+                selectedWindow.remove(option.index);
+            }
+        });
+
+        reorderQuestions(selectedWindow);
+    }
 
 function resetGenderOptions() {
     const genderRadios = document.querySelectorAll('input[type="radio"][name="gender"]');

@@ -329,7 +329,13 @@ def index():
         cursor.execute("select distinct(answer) from answers where questioneid='4' and answer <>'nan'")
         Dominant_hand = [row[0] for row in cursor.fetchall()]
         Dominant_hand.sort()
-        cursor.close()
+        cursor.execute("SELECT * FROM questiones WHERE questioneid >= 14 AND questioneid <= 15")
+        custom_questions = [row[1] for row in cursor.fetchall()]
+        cursor.execute("SELECT * FROM questiones WHERE questioneid >= 23 AND questioneid <= 28")
+        education_work_questions = [row[1] for row in cursor.fetchall()]
+        cursor.execute("SELECT * FROM questiones WHERE questioneid >= 313 AND questioneid <= 329")
+        music_questions = [row[1] for row in cursor.fetchall()]
+        all_questions =custom_questions + education_work_questions + music_questions
         connection.close()
       if request.method == 'POST':
         selected_patient_codes = request.form.getlist('subjects[]')
@@ -362,7 +368,7 @@ def index():
             else:
                 return render_template('results.html', columns=['path'], results=[], message="No data found.")
 
-      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
+      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand,all_questions=all_questions)
     else:
         return render_template('loginPage.html')
 
@@ -447,7 +453,13 @@ def export():
 
     return Response("No data found or an error occurred", status=400)
 ########## filter1
-
+# @app.route('/', methods=['GET', 'POST'])
+# def filter_page():
+#     # Example data for locations
+#     locations = ["New York", "Los Angeles", "Chicago", "Miami"]
+#
+#     # Existing context data
+#     return render_template('search_scans.html', all_questions=locations)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
