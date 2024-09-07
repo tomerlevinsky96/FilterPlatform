@@ -301,74 +301,71 @@
                 <button type="button" onclick="removeSelectedQuestions()" class="button">&#9650;</button>
             </div>
             <div style="margin-top: 10px;">
-                <legend>Selected Questions</legend>
-                <select id="selected-questions" multiple style="width: 560px; height: 100px; overflow: auto;"></select>
+             <legend>Selected Questions
+             <!-- Display selected questions here -->
+                <select id="all_selected_questions_display" name="all_selected_questions_display" multiple style="width: 335%; height: 100px;"></select>
+             </legend>
            </div>
            <div style="margin-top: 10px;">
-              <button type="button" id="exportButton">Export to Excel</button>
+               <button type="button" id="exportButton">Export to Excel</button>
            </div>
     </fieldset>
-    </form>
+   </form>
 <script>
 console.log("Script loaded");
-    function reorderQuestions(selectElement) {
-      const options = Array.from(selectElement.options);
 
-      // Sort options by text to keep them in the original order
-      options.sort((a, b) => a.text.localeCompare(b.text));
+function reorderQuestions(selectElement) {
+    const options = Array.from(selectElement.options);
 
-      // Clear the current options
-      selectElement.innerHTML = '';
+    // Sort options by text to keep them in the original order
+    options.sort((a, b) => a.text.localeCompare(b.text));
 
-      // Re-add options with new numbering
-      options.forEach((option, index) => {
+    // Clear the current options
+    selectElement.innerHTML = '';
+
+    // Re-add options with new numbering
+    options.forEach((option, index) => {
         option.text = `${index + 1}. ${option.text.split('. ')[1] || option.text}`;
         selectElement.add(option);
     });
-   }
 
+    updateHiddenSelectedQuestions(); // Update hidden input value
+}
 
+function addSelectedQuestions() {
+    const selectedWindow = document.getElementById('all_selected_questions_display');
+    const questionsList = document.getElementById('questions-select');
 
-
-
-
-
-   function addSelectedQuestions() {
-        const selectedWindow = document.getElementById('selected-questions');
-        const questionsList = document.getElementById('questions-select');
-        const selectedQuestions = [];
-
-        // Iterate through the list and find selected questions
-        for (let i = 0; i < questionsList.options.length; i++) {
-            if (questionsList.options[i].selected) {
-                const question = questionsList.options[i].text;
-                selectedQuestions.push(question);
+    // Iterate through the list and find selected questions
+    Array.from(questionsList.options).forEach(option => {
+        if (option.selected) {
+            const isAlreadyAdded = Array.from(selectedWindow.options).some(opt => opt.value === option.value);
+            if (!isAlreadyAdded) {
+                const newOption = document.createElement('option');
+                newOption.text = option.text;
+                newOption.value = option.value;
+                selectedWindow.add(newOption);
             }
         }
+    });
 
-        // Append selected questions to the selected window without removing from the original list
-        selectedQuestions.forEach(question => {
-            const newOption = document.createElement('option');
-            newOption.text = question;
-            selectedWindow.add(newOption);
-        });
+    reorderQuestions(selectedWindow);
+    updateHiddenSelectedQuestions(); // Update hidden input value
+}
 
-        reorderQuestions(selectedWindow);
-    }
+function removeSelectedQuestions() {
+    const selectedWindow = document.getElementById('all_selected_questions_display');
 
-    function removeSelectedQuestions() {
-        const selectedWindow = document.getElementById('selected-questions');
+    // Remove selected questions from the selected window only
+    Array.from(selectedWindow.options).forEach(option => {
+        if (option.selected) {
+            selectedWindow.remove(option.index);
+        }
+    });
 
-        // Remove selected questions from the selected window only
-        const selectedOptions = Array.from(selectedWindow.options);
-        selectedOptions.forEach(option => {
-            if (option.selected) {
-                selectedWindow.remove(option.index);
-            }
-        });
-
-        reorderQuestions(selectedWindow);
-    }
+    reorderQuestions(selectedWindow);
+    updateHiddenSelectedQuestions(); // Update hidden input value
+}
 
 function resetGenderOptions() {
     const genderRadios = document.querySelectorAll('input[type="radio"][name="gender"]');
@@ -558,11 +555,11 @@ document.addEventListener('DOMContentLoaded', function() {
     updatePatientCodes();
     updateSubjectCount();
     updateSelectedSubjectCount(); // Call to ensure count is correct on load
-  });
+});
 
-  function goBack() {
+function goBack() {
     window.location.href = '/HomePage';
-  }
+}
 </script>
 </body>
 </html>

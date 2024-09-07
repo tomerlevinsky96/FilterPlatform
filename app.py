@@ -390,6 +390,7 @@ def export():
        selected_genders = request.form.getlist('gender')[0]
     else:
        selected_genders = request.form.getlist('gender')
+    all_selected_questions = request.form.getlist('all_selected_questions_display')
     age_from = request.form.get('age_from')
     age_to = request.form.get('age_to')
     start_date_of_scan = request.form.get('start_date_of_scan')
