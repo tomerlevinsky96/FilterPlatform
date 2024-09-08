@@ -220,11 +220,11 @@
                     {% endfor %}
                 </select>
             </label>
-            <label>Condition
-                <select name="condition">
-                    <option value="">Select Condition</option>
-                    {% for condition in conditions %}
-                        <option value="{{ condition }}">{{ condition }}</option>
+            <label>Protocol
+                <select name="Protocol">
+                    <option value="">Select Protocol</option>
+                    {% for Protocol in Protocols %}
+                        <option value="{{ Protocol }}">{{ Protocol }}</option>
                     {% endfor %}
                 </select>
             </label>
@@ -276,15 +276,15 @@
         </fieldset>
         <input type="hidden" name="all_selected_patient_codes" id="all_selected_patient_codes">
     <fieldset class="row">
-            <legend>Subject IDs Filters</legend>
+            <legend>Subjects Output data</legend>
             <div style="margin-bottom: 20px;">
                  <label><input type="checkbox" name="Gender" value="Gender">Gender</label>
                  <label><input type="checkbox" name="crf.datetimescan" value="crf.datetimescan">Date of scan</label>
-                 <label><input type="checkbox" name="Age" value="Age">Age</label>
+                 <label><input type="checkbox" name="Ageofscan" value="Ageofscan">Age</label>
                  <label><input type="checkbox" name="weightkg" value="weightkg">Weight</label>
                  <label><input type="checkbox" name="heightcm" value="heightcm">Height</label>
                  <label><input type="checkbox" name="Study" value="Study">Study</label>
-                 <label><input type="checkbox" name="Condition" value="Condition">Condition</label>
+                 <label><input type="checkbox" name="Protocol" value="Protocol">Protocol</label>
                  <label><input type="checkbox" name="bidspath" value="bidspath">bids path</label>
                  <label><input type="checkbox" name="resultspath" value="resultspath">results path</label>
                  <label><input type="checkbox" name="rawdatapath" value="rawdatapath">raw data path</label>
@@ -301,10 +301,9 @@
                 <button type="button" onclick="removeSelectedQuestions()" class="button">&#9650;</button>
             </div>
             <div style="margin-top: 10px;">
-             <legend>Selected Questions
+             <legend>Selected Questions </legend>
              <!-- Display selected questions here -->
-                <select id="all_selected_questions_display" name="all_selected_questions_display" multiple style="width: 335%; height: 100px;"></select>
-             </legend>
+             <select id="all_selected_questions_display" name="all_selected_questions_display" multiple style="width: 563px; height: 100px; resize: none;"></select>
            </div>
            <div style="margin-top: 10px;">
                <button type="button" id="exportButton">Export to Excel</button>
@@ -316,27 +315,18 @@ console.log("Script loaded");
 
 function reorderQuestions(selectElement) {
     const options = Array.from(selectElement.options);
-
-    // Sort options by text to keep them in the original order
     options.sort((a, b) => a.text.localeCompare(b.text));
-
-    // Clear the current options
     selectElement.innerHTML = '';
-
-    // Re-add options with new numbering
     options.forEach((option, index) => {
         option.text = `${index + 1}. ${option.text.split('. ')[1] || option.text}`;
         selectElement.add(option);
     });
-
-    updateHiddenSelectedQuestions(); // Update hidden input value
+    updateHiddenSelectedQuestions();
 }
 
 function addSelectedQuestions() {
     const selectedWindow = document.getElementById('all_selected_questions_display');
     const questionsList = document.getElementById('questions-select');
-
-    // Iterate through the list and find selected questions
     Array.from(questionsList.options).forEach(option => {
         if (option.selected) {
             const isAlreadyAdded = Array.from(selectedWindow.options).some(opt => opt.value === option.value);
@@ -348,23 +338,33 @@ function addSelectedQuestions() {
             }
         }
     });
-
     reorderQuestions(selectedWindow);
-    updateHiddenSelectedQuestions(); // Update hidden input value
+    updateHiddenSelectedQuestions();
 }
 
 function removeSelectedQuestions() {
     const selectedWindow = document.getElementById('all_selected_questions_display');
-
-    // Remove selected questions from the selected window only
     Array.from(selectedWindow.options).forEach(option => {
         if (option.selected) {
             selectedWindow.remove(option.index);
         }
     });
-
     reorderQuestions(selectedWindow);
-    updateHiddenSelectedQuestions(); // Update hidden input value
+    updateHiddenSelectedQuestions();
+}
+
+function updateHiddenSelectedQuestions() {
+    const selectedQuestions = document.getElementById('all_selected_questions_display');
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'all_selected_questions';
+    hiddenInput.value = JSON.stringify(Array.from(selectedQuestions.options).map(opt => opt.value));
+    const existingHiddenInput = document.querySelector('input[name="all_selected_questions"]');
+    if (existingHiddenInput) {
+        existingHiddenInput.replaceWith(hiddenInput);
+    } else {
+        selectedQuestions.after(hiddenInput);
+    }
 }
 
 function resetGenderOptions() {
@@ -381,34 +381,30 @@ function resetGenderOption(element) {
 function addSelectedCodesToDiv() {
     const patientSelect = document.querySelector('select[name="patientcode[]"]');
     const selectedCodes = document.getElementById('selected-codes');
-
     Array.from(patientSelect.selectedOptions).forEach(option => {
         if (!Array.from(selectedCodes.options).some(selected => selected.value === option.value)) {
             selectedCodes.add(new Option(option.text, option.value));
         }
         patientSelect.remove(option.index);
     });
-
     sortSelect(selectedCodes);
     sortSelect(patientSelect);
     updateSubjectCount();
-    updateSelectedSubjectCount(); // Call to update selected subject count
+    updateSelectedSubjectCount();
 }
 
 function deleteSelectedCodes() {
     const selectedCodes = document.getElementById('selected-codes');
     const patientSelect = document.querySelector('select[name="patientcode[]"]');
-
     Array.from(selectedCodes.selectedOptions).forEach(option => {
         if (!Array.from(patientSelect.options).some(selected => selected.value === option.value)) {
             patientSelect.add(new Option(option.text, option.value));
         }
         selectedCodes.remove(option.index);
     });
-
     sortSelect(patientSelect);
     updateSubjectCount();
-    updateSelectedSubjectCount(); // Call to update selected subject count
+    updateSelectedSubjectCount();
 }
 
 function sortSelect(selectElement) {
@@ -423,7 +419,6 @@ function filterPatientCodes() {
     const filter = input.value.toUpperCase();
     const select = document.querySelector('select[name="patientcode[]"]');
     const options = select.options;
-
     for (let i = 0; i < options.length; i++) {
         const txtValue = options[i].textContent || options[i].innerText;
         options[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
@@ -432,15 +427,18 @@ function filterPatientCodes() {
 
 function updatePatientCodes() {
     const formData = new FormData(document.querySelector('form'));
+    const ignoredElements = document.querySelectorAll('fieldset.row:last-of-type input[type="checkbox"], fieldset.row:last-of-type select');
 
-    // Get checkboxes within the "Subject IDs Filters" section to be ignored
-    const ignoredCheckboxes = document.querySelectorAll('fieldset.row:nth-of-type(6) input[type="checkbox"][name]');
-
-    // Loop through all checkboxes in the form
-    document.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
-        // If the checkbox is not in the ignored section, update its value
-        if (!Array.from(ignoredCheckboxes).includes(checkbox)) {
-            formData.set(checkbox.name, checkbox.checked ? 'OK' : '');
+    document.querySelectorAll('input[type="checkbox"], select').forEach(element => {
+        if (!Array.from(ignoredElements).includes(element)) {
+            if (element.type === 'checkbox') {
+                formData.set(element.name, element.checked ? 'OK' : '');
+            } else if (element.type === 'select-multiple') {
+                const selectedValues = Array.from(element.selectedOptions).map(option => option.value);
+                formData.set(element.name, selectedValues);
+            } else {
+                formData.set(element.name, element.value);
+            }
         }
     });
 
@@ -453,16 +451,14 @@ function updatePatientCodes() {
         console.log("Received patient codes:", patientCodes);
         const patientSelect = document.querySelector('select[name="patientcode[]"]');
         const selectedCodes = document.getElementById('selected-codes');
-
-        // Clear the selected codes
         selectedCodes.innerHTML = '';
-
         patientSelect.innerHTML = '';
         patientCodes.forEach(code => {
             patientSelect.add(new Option(code, code));
         });
         console.log("Patient codes updated and selected codes cleared");
         updateSubjectCount();
+        updateSelectedSubjectCount();
     })
     .catch(error => console.error('Error updating patient codes:', error));
 }
@@ -476,18 +472,16 @@ function updateSelectedSubjectCount() {
 function prepareFormSubmission() {
     const selectedCodes = document.getElementById('selected-codes');
     const allSelectedCodesInput = document.getElementById('all_selected_patient_codes');
-
     const allSelectedCodes = Array.from(selectedCodes.options).map(option => option.value);
     allSelectedCodesInput.value = JSON.stringify(allSelectedCodes);
-
     Array.from(selectedCodes.options).forEach(option => option.selected = true);
+    const selectedQuestions = document.getElementById('all_selected_questions_display');
+    Array.from(selectedQuestions.options).forEach(option => option.selected = true);
 }
 
 function exportToExcel() {
     prepareFormSubmission();
-
     const formData = new FormData(document.querySelector('form'));
-
     fetch('/export', {
         method: 'POST',
         body: formData
@@ -523,38 +517,34 @@ function updateSubjectCount() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded, adding event listeners");
 
-    // Add event listeners for all input elements except the subject ID checkboxes
     const elementsToWatch = [
-        ...document.querySelectorAll('select:not([name="patientcode[]"]):not(#selected-codes)'),
-        ...document.querySelectorAll('input[type="radio"], input[type="number"], input[type="date"], input[type="time"], input[type="checkbox"]:not(fieldset.row:nth-of-type(6) input[type="checkbox"])')
+        ...document.querySelectorAll('select:not([name="patientcode[]"]):not(#selected-codes):not(fieldset.row:last-of-type select)'),
+        ...document.querySelectorAll('input[type="radio"], input[type="number"], input[type="date"], input[type="time"], input[type="checkbox"]:not(fieldset.row:last-of-type input[type="checkbox"])')
     ];
 
     elementsToWatch.forEach(element => {
         element.addEventListener('change', () => {
-            if (element.closest('fieldset.row') && !element.closest('fieldset.row:nth-of-type(6)')) {
+            if (element.closest('fieldset.row') && !element.closest('fieldset.row:last-of-type')) {
                 updatePatientCodes();
-                // Clear the selected codes when a filter changes
                 document.getElementById('selected-codes').innerHTML = '';
-                updateSelectedSubjectCount();  // Call to update selected subject count
+                updateSelectedSubjectCount();
             }
         });
         console.log("Added event listener to", element);
     });
 
-    // Exclude checkboxes from "Subject IDs Filters" from triggering patient code updates
-    const subjectIdCheckboxes = document.querySelectorAll('fieldset.row:nth-of-type(6) input[type="checkbox"]');
-    subjectIdCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            console.log("Checkbox in 'Subject IDs Filters' changed, no update triggered.");
+    const ignoredElements = document.querySelectorAll('fieldset.row:last-of-type input[type="checkbox"], fieldset.row:last-of-type select');
+    ignoredElements.forEach(element => {
+        element.addEventListener('change', () => {
+            console.log("Element in the last fieldset changed, no update triggered.");
         });
     });
 
     document.getElementById('exportButton').addEventListener('click', exportToExcel);
 
-    // Initial update of patient codes and subject count
     updatePatientCodes();
     updateSubjectCount();
-    updateSelectedSubjectCount(); // Call to ensure count is correct on load
+    updateSelectedSubjectCount();
 });
 
 function goBack() {

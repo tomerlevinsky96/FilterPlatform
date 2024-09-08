@@ -101,7 +101,7 @@ def get_distinct_values(connection, app_column_name):
         print(f"Error fetching distinct values for {app_column_name}:", e)
         return []
 
-def build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,selected_patient_codes,Study,Group,Condition,scan_number,Dominant_hand,update_subjects,Data_output):
+def build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,selected_patient_codes,Study,Group,Protocol,scan_number,Dominant_hand,update_subjects,Data_output):
     where_conditions = []
     params = []
 
@@ -127,25 +127,25 @@ def build_and_execute_query(connection, selected_types, selected_genders, age_fr
 
     # Process age range
     if age_from:
-        where_conditions.append(f"age ~ '^[0-9]*\.?[0-9]+$' and  CAST(age AS NUMERIC)>= '{age_from}'")
+        where_conditions.append(f"Ageofscan ~ '^[0-9]*\.?[0-9]+$' and  CAST(Ageofscan AS NUMERIC)>= '{age_from}'")
     if age_to:
-        where_conditions.append(f"age ~ '^[0-9]*\.?[0-9]+$' and  CAST(age AS NUMERIC)<= '{age_to}'")
+        where_conditions.append(f"Ageofscan ~ '^[0-9]*\.?[0-9]+$' and  CAST(Ageofscan AS NUMERIC)<= '{age_to}'")
     if weight_from:
-        where_conditions.append(f"weightkg ~ '^[0-9]*\.?[0-9]+$' and CAST(weightkg AS NUMERIC)>='{weight_from}'")
+        where_conditions.append(f"weight ~ '^[0-9]*\.?[0-9]+$' and CAST(weight AS NUMERIC)>='{weight_from}'")
     if weight_to:
-        where_conditions.append(f"weightkg ~ '^[0-9]*\.?[0-9]+$' and CAST(weightkg AS NUMERIC)<='{weight_to}'")
+        where_conditions.append(f"weight ~ '^[0-9]*\.?[0-9]+$' and CAST(weight AS NUMERIC)<='{weight_to}'")
     if height_from:
-        where_conditions.append(f"heightcm ~ '^[0-9]*\.?[0-9]+$' and CAST(heightcm AS NUMERIC)>= '{height_from}'")
+        where_conditions.append(f"height ~ '^[0-9]*\.?[0-9]+$' and CAST(height AS NUMERIC)>= '{height_from}'")
     if height_to:
-        where_conditions.append(f"heightcm ~ '^[0-9]*\.?[0-9]+$' and CAST(heightcm AS NUMERIC)<= '{height_to}'")
+        where_conditions.append(f"height ~ '^[0-9]*\.?[0-9]+$' and CAST(height AS NUMERIC)<= '{height_to}'")
     if Study:
         where_conditions.append(f"study = '{Study}'")
     if Group:
         where_conditions.append(f"groupname = '{Group}'")
-    if Condition:
-        where_conditions.append(f"condition = '{Condition}'")
+    if Protocol:
+        where_conditions.append(f"protocol = '{Protocol}'")
     if scan_number:
-        where_conditions.append(f"scanno = '{scan_number}'")
+        where_conditions.append(f"noscan = '{scan_number}'")
     if Dominant_hand:
         where_conditions.append(f"answer = '{Dominant_hand}'")
 
@@ -284,7 +284,7 @@ def get_filtered_patient_codes():
     end_hour_of_scan = request.form.get('end_hour_of_scan')
     study = request.form.get('study')
     group = request.form.get('group')
-    condition = request.form.get('condition')
+    Protocol = request.form.get('Protocol')
     scan_no = request.form.get('scan_no')
     gender = request.form.get('gender')
     age_from = request.form.get('age_from')
@@ -299,7 +299,7 @@ def get_filtered_patient_codes():
     protocols = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
     connection = connect_to_db()
     if connection:
-        patient_codes = build_and_execute_query(connection, protocols,gender, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,' ',study,group,condition,scan_no,Dominant_hand,'yes','NULL')
+        patient_codes = build_and_execute_query(connection, protocols,gender, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,' ',study,group,Protocol,scan_no,Dominant_hand,'yes','NULL')
         patient_codes.sort()
         print("Returning patient codes:", patient_codes)
         return jsonify(patient_codes)
@@ -317,16 +317,16 @@ def index():
         cursor.execute("SELECT DISTINCT groupname FROM crf where groupname <>'NULL' and groupname<>'nan'")
         group_names = [row[0] for row in cursor.fetchall()]
         group_names.sort()  # Sort patient codes alphabetically
-        cursor.execute("SELECT DISTINCT condition FROM crf where condition <>'NULL' and condition<>'nan'")
-        conditions = [row[0] for row in cursor.fetchall()]
-        conditions.sort()  #
+        cursor.execute("SELECT DISTINCT Protocol FROM crf where Protocol <>'NULL' and Protocol<>'nan'")
+        Protocols = [row[0] for row in cursor.fetchall()]
+        Protocols.sort()  #
         cursor.execute("SELECT DISTINCT study FROM crf where study <>'NULL' and study<>'nan'")
         studies = [row[0] for row in cursor.fetchall()]
         studies.sort()
-        cursor.execute("SELECT DISTINCT scanno FROM crf where scanno <>'NULL' and scanno<>'nan'")
+        cursor.execute("SELECT DISTINCT noscan FROM crf where noscan <>'NULL' and noscan<>'nan'")
         scan_numbers = [row[0] for row in cursor.fetchall()]
         scan_numbers.sort()
-        cursor.execute("select distinct(answer) from answers where questioneid='4' and answer <>'nan'")
+        cursor.execute("select distinct(answer) from answers where questioneid='5' and answer <>'nan'")
         Dominant_hand = [row[0] for row in cursor.fetchall()]
         Dominant_hand.sort()
         cursor.execute("SELECT * FROM questiones WHERE questioneid >= 14 AND questioneid <= 15")
@@ -353,14 +353,14 @@ def index():
         height_to = request.form.get('height_to')
         Study = request.form.get('study')
         Group = request.form.get('group')
-        Condition = request.form.get('condition')
+        Protocol = request.form.get('Protocol')
         scan_number = request.form.get('scan_no')
         selected_patient_codes = request.form.getlist('selected_patient_codes')
         Dominant_hand = request.form.getlist('Dominant_hand')
         connection = connect_to_db()
         if connection:
             all_columns = get_all_columns(connection, "scans")
-            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Condition,scan_number,Dominant_hand[0],'NULL')
+            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Protocol,scan_number,Dominant_hand[0],'NULL')
             connection.close()
 
             if results:
@@ -368,7 +368,7 @@ def index():
             else:
                 return render_template('results.html', columns=['path'], results=[], message="No data found.")
 
-      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,conditions=conditions,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand,all_questions=all_questions)
+      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,Protocols=Protocols,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand,all_questions=all_questions)
     else:
         return render_template('loginPage.html')
 
@@ -378,6 +378,8 @@ def index():
 @app.route('/export', methods=['POST'])
 def export():
     # Get all the form data
+    connection = connect_to_db()
+    cursor = connection.cursor()
     file = request.files.get('file')
     selected_types = {}
     for scan_type in SCAN_TYPES:
@@ -403,7 +405,7 @@ def export():
     height_to = request.form.get('height_to')
     Study = request.form.get('study')
     Group = request.form.get('group')
-    Condition = request.form.get('condition')
+    Protocol = request.form.get('Protocol')
     scan_number = request.form.get('scan_no')
     selected_patient_codes = request.form.getlist('selected_patient_codes')
     if request.form.getlist('Dominant_hand'):
@@ -411,7 +413,7 @@ def export():
     else:
         Dominant_hand = request.form.getlist('Dominant_hand')
     # Connect to the database and get results
-    fields = ['Gender', 'crf.datetimescan', 'Age', 'weightkg', 'heightcm', 'Study', 'Condition','Group','Dominant hand','bidspath','resultspath','rawdatapath']
+    fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol','Group','Dominant hand','bidspath','resultspath','rawdatapath']
     Data_output=[]
     # Iterate through each field
     for field in fields:
@@ -427,6 +429,8 @@ def export():
         ws = wb.active
         ws.title = "Results"
         # Write headers
+        headers = ["Subject"] + ["details"] + ["at"] + ["the"] + ["time"] + ["of"] + ["the"] + ["scan"]
+        append_and_color_header(ws, headers, "FFFFFF00")
         headers = ["Questionaire Code"] + [column for column in Data_output]
         ws.append(headers)
         for code in selected_patient_codes:
@@ -434,7 +438,7 @@ def export():
             newcode.append(code)
             result = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to,
                                               start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan,
-                                              weight_from, weight_to, height_from, height_to,newcode, Study, Group, Condition, scan_number,Dominant_hand,'no',Data_output)
+                                              weight_from, weight_to, height_from, height_to,newcode, Study, Group, Protocol, scan_number,Dominant_hand,'no',Data_output)
 
             if result:
 
@@ -442,6 +446,38 @@ def export():
                     ws.append([code] + cleaned_result)
 
             # Create an Excel file in memory
+        ws.append([])
+        all_selected_questions_str = ", ".join(f"'{question}'" for question in all_selected_questions)
+        query = f"""SELECT questioneid
+                    FROM questiones
+                    WHERE question IN ({all_selected_questions_str})
+                 """
+        print(query)
+        cursor.execute(query)
+        question_ids = cursor.fetchall()
+        question_ids = ','.join(str(id[0]) for id in question_ids)
+        headers = ["Subject"] + ["details"] + ["from"] + ["questionaire"]
+        append_and_color_header(ws, headers, "FFFF0000")
+        headers = ["Questionaire Code"] + [question for question in all_selected_questions]
+        ws.append(headers)
+        for code in selected_patient_codes:
+                query = f""" SELECT answers.questioneid,answers.answer
+                             FROM subjects inner join answers on subjects.questionairecode=answers.questionairecode
+                             WHERE subjects.questionairecode = ('{code}') and answers.questioneid IN ({question_ids})
+                       """
+                cursor.execute(query)
+                result = cursor.fetchall()
+                keys = [item[0] for item in result]
+                question_ids_temp = re.findall(r'\d+', question_ids)
+                # Convert the extracted strings to integers
+                question_ids_temp = [int(num) for num in question_ids_temp]
+                for question_id_temp in question_ids_temp:
+                    if question_id_temp not in keys:
+                        result.append((question_id_temp, 'Nan'))
+                processed_data = process_flexible_data(headers, code, result)
+                for data in processed_data:
+                    ws.append(data)
+
         excel_file = BytesIO()
         wb.save(excel_file)
         excel_file.seek(0)
@@ -517,7 +553,7 @@ def upload_file():
 
     try:
         with (conn.cursor() as cur):
-            crf_columns = ['groupname', 'age', 'gender', 'scanno','datetimescan', 'heightcm', 'weightkg', 'study', 'condition','scanfile']
+            crf_columns = ['groupname', 'Ageofscan', 'gender', 'scanno','datetimescan', 'height', 'weight', 'study', 'Protocol','scanfile']
             question_ids = ', '.join(f"'{qid}'" for qid in selected_questions if qid not in crf_columns)
 
             if question_ids!="":
@@ -696,11 +732,11 @@ def get_questions():
                 common_questions = [
                     ('gender', 'Gender (at the time of the scan)'),
                     ('datetimescan', 'Date and time of scan'),
-                    ('age', 'Age (at the time of the scan)'),
-                    ('weightkg', 'Weight (kg) (at the time of the scan)'),
-                    ('heightcm', 'Height (cm) (at the time of the scan)'),
+                    ('Ageofscan', 'Ageofscan (at the time of the scan)'),
+                    ('weight', 'Weight (kg) (at the time of the scan)'),
+                    ('height', 'Height (cm) (at the time of the scan)'),
                     ('study', 'study'),
-                    ('condition', 'condition'),
+                    ('Protocol', 'Protocol'),
                     ('groupname', 'Group'),
                     ('4', 'Dominant hand'),
                     #('Scan Details', 'Scan Details')
@@ -718,11 +754,11 @@ def get_questions():
                 patient_details = [
                     ('gender', 'Gender (at the time of the scan) '),
                     ('datetimescan', 'Date and time of scan'),
-                    ('age', 'Age (at the time of the scan)'),
-                    ('weightkg', 'Weight (kg) (at the time of the scan)'),
-                    ('heightcm', 'Height (cm) (at the time of the scan)'),
+                    ('Ageofscan', 'Ageofscan (at the time of the scan)'),
+                    ('weight', 'Weight (kg) (at the time of the scan)'),
+                    ('height', 'Height (cm) (at the time of the scan)'),
                     ('study', 'study'),
-                    ('condition', 'condition'),
+                    ('Protocol', 'Protocol'),
                     ('groupname', 'Group'),
                     # ('Scan Details', 'Scan Details')
                 ]
