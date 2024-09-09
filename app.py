@@ -16,17 +16,14 @@ import datetime
 import re
 from openpyxl.styles import Font, PatternFill
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.abspath('Templates'))
 app.secret_key = 'your_secret_key'  # Required for flash messaging
 
 
 # Database connection settings
 DB_CONFIG = {
-    "user": 'tomer',
-    "password":'t1',
-    "port": '5433',
-    "host": 'localhost',
-    "database":'appdb'
+    "user": 'postgres',
+    "database":'appdata'
 }
 
 # Mapping between application and database column names
