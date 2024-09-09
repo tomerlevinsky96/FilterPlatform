@@ -146,8 +146,7 @@ def build_and_execute_query(connection, selected_types, selected_genders, age_fr
         where_conditions.append(f"protocol = '{Protocol}'")
     if scan_number:
         where_conditions.append(f"noscan = '{scan_number}'")
-    if Dominant_hand:
-        where_conditions.append(f"answer = '{Dominant_hand}'")
+
 
     if start_date_of_scan and end_date_of_scan and start_hour_of_scan and end_hour_of_scan:
         # If all date and time filters are present
@@ -360,7 +359,7 @@ def index():
         connection = connect_to_db()
         if connection:
             all_columns = get_all_columns(connection, "scans")
-            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Protocol,scan_number,Dominant_hand[0],'NULL')
+            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Protocol,scan_number,Dominant_hand[0],'no','NULL')
             connection.close()
 
             if results:
@@ -393,6 +392,7 @@ def export():
     else:
        selected_genders = request.form.getlist('gender')
     all_selected_questions = request.form.getlist('all_selected_questions_display')
+    Dominant_hand=request.form.getlist('Dominant hand')
     age_from = request.form.get('age_from')
     age_to = request.form.get('age_to')
     start_date_of_scan = request.form.get('start_date_of_scan')
@@ -413,14 +413,13 @@ def export():
     else:
         Dominant_hand = request.form.getlist('Dominant_hand')
     # Connect to the database and get results
-    fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol','Group','Dominant hand','bidspath','resultspath','rawdatapath']
+    fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol','Group','bidspath','resultspath','rawdatapath']
     Data_output=[]
     # Iterate through each field
+    Dominant_hand_post ='no'
     for field in fields:
         value = request.form.get(field)  # Get the value from the form
-        if value=='Dominant hand':
-            Dominant_hand='Dominant hand'
-        elif value and value != 'None':  # Check if it's not None or 'None'
+        if value and value != 'None':  # Check if it's not None or 'None'
             Data_output.append(value)  # Append to the output list
 
     connection = connect_to_db()
@@ -447,6 +446,8 @@ def export():
 
             # Create an Excel file in memory
         ws.append([])
+        if Dominant_hand:
+            all_selected_questions.append('')
         all_selected_questions_str = ", ".join(f"'{question}'" for question in all_selected_questions)
         query = f"""SELECT questioneid
                     FROM questiones
