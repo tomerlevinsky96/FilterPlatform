@@ -199,8 +199,8 @@
                 <label style="flex: 1 1 45%;">To age <input type="number" name="age_to"></label>
             </div>
             <div style="display: flex; flex-wrap: wrap;">
-                <label style="flex: 1 1 45%;">From Height (cm)<input type="number" name="height_from"></label>
-                <label style="flex: 1 1 45%;">To Height (cm)<input type="number" name="height_to"></label>
+                <label style="flex: 1 1 45%;">From Height (m)<input type="number" name="height_from" step="0.01"></label>
+                <label style="flex: 1 1 45%;">To Height (m)<input type="number" name="height_to"></label>
                 <label style="flex: 1 1 45%;">From Weight (kg)<input type="number" name="weight_from"></label>
                 <label style="flex: 1 1 45%;">To Weight (kg)<input type="number" name="weight_to"></label>
             </div>
@@ -221,10 +221,10 @@
                 </select>
             </label>
             <label>Protocol
-                <select name="Protocol">
+                <select name="protocol">
                     <option value="">Select Protocol</option>
-                    {% for Protocol in Protocols %}
-                        <option value="{{ Protocol }}">{{ Protocol }}</option>
+                    {% for protocol in protocols %}
+                        <option value="{{ protocol }}">{{ protocol }}</option>
                     {% endfor %}
                 </select>
             </label>
@@ -265,11 +265,11 @@
             </legend>
             <div style="margin-bottom: 10px; display: flex; gap: 90px;">
               <div>
-                <span>Number of subjects: </span>
+                <span>Number of Questionaire codes: </span>
                 <input type="text" id="subject-count" readonly style="width: 50px; text-align: center;">
               </div>
               <div>
-                 <span>Number of selected subjects: </span>
+                 <span>Number of  selected Questionaire codes: </span>
                  <input type="text" id="selected-subject-count" readonly style="width: 50px; text-align: center;">
               </div>
             </div>
@@ -288,24 +288,9 @@
                  <label><input type="checkbox" name="bidspath" value="bidspath">bids path</label>
                  <label><input type="checkbox" name="resultspath" value="resultspath">results path</label>
                  <label><input type="checkbox" name="rawdatapath" value="rawdatapath">raw data path</label>
-                 <label><input type="checkbox" name="Dominant hand" value="Dominant hand">Dominant hand</label>
+                 <label><input type="checkbox" name="Dominant.hand" value="Dominant.hand">Dominant hand</label>
             </div>
-            <legend>Questions from the Questionnaire</legend>
-            <select name="all_questions[]" id="questions-select" multiple>
-                {% for question in all_questions %}
-                  <option value="{{ question }}">{{ loop.index }}. {{ question }}</option>
-                {% endfor %}
-            </select>
-            <div class="add-button">
-                <button type="button" onclick="addSelectedQuestions()" class="button">&#9660;</button>
-                <button type="button" onclick="removeSelectedQuestions()" class="button">&#9650;</button>
-            </div>
-            <div style="margin-top: 10px;">
-             <legend>Selected Questions </legend>
-             <!-- Display selected questions here -->
-             <select id="all_selected_questions_display" name="all_selected_questions_display" multiple style="width: 563px; height: 100px; resize: none;"></select>
-           </div>
-           <div style="margin-top: 10px;">
+           <div style="margin-top: 0px;">
                <button type="button" id="exportButton">Export to Excel</button>
            </div>
     </fieldset>
@@ -351,20 +336,6 @@ function removeSelectedQuestions() {
     });
     reorderQuestions(selectedWindow);
     updateHiddenSelectedQuestions();
-}
-
-function updateHiddenSelectedQuestions() {
-    const selectedQuestions = document.getElementById('all_selected_questions_display');
-    const hiddenInput = document.createElement('input');
-    hiddenInput.type = 'hidden';
-    hiddenInput.name = 'all_selected_questions';
-    hiddenInput.value = JSON.stringify(Array.from(selectedQuestions.options).map(opt => opt.value));
-    const existingHiddenInput = document.querySelector('input[name="all_selected_questions"]');
-    if (existingHiddenInput) {
-        existingHiddenInput.replaceWith(hiddenInput);
-    } else {
-        selectedQuestions.after(hiddenInput);
-    }
 }
 
 function resetGenderOptions() {
@@ -430,7 +401,17 @@ function updatePatientCodes() {
     const ignoredElements = document.querySelectorAll('fieldset.row:last-of-type input[type="checkbox"], fieldset.row:last-of-type select');
 
     document.querySelectorAll('input[type="checkbox"], select').forEach(element => {
-        if (!Array.from(ignoredElements).includes(element)) {
+        if (element.closest('fieldset.row:last-of-type') || !element.closest('fieldset.row')) {
+            // Include elements in the last fieldset
+            if (element.type === 'checkbox') {
+                formData.set(element.name, element.checked ? 'OK' : '');
+            } else if (element.type === 'select-multiple') {
+                const selectedValues = Array.from(element.selectedOptions).map(option => option.value);
+                formData.set(element.name, selectedValues);
+            } else {
+                formData.set(element.name, element.value);
+            }
+        } else {
             if (element.type === 'checkbox') {
                 formData.set(element.name, element.checked ? 'OK' : '');
             } else if (element.type === 'select-multiple') {
@@ -475,8 +456,6 @@ function prepareFormSubmission() {
     const allSelectedCodes = Array.from(selectedCodes.options).map(option => option.value);
     allSelectedCodesInput.value = JSON.stringify(allSelectedCodes);
     Array.from(selectedCodes.options).forEach(option => option.selected = true);
-    const selectedQuestions = document.getElementById('all_selected_questions_display');
-    Array.from(selectedQuestions.options).forEach(option => option.selected = true);
 }
 
 function exportToExcel() {
@@ -495,7 +474,7 @@ function exportToExcel() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'filtered_results.xlsx';
+        a.download = 'Subject details at the time of the scan.xlsx';
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -551,5 +530,6 @@ function goBack() {
     window.location.href = '/HomePage';
 }
 </script>
+
 </body>
 </html>
