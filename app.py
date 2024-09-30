@@ -22,10 +22,7 @@ app.secret_key = 'your_secret_key'  # Required for flash messaging
 
 # Database connection settings
 DB_CONFIG = {
-    "user": 'tomer',
-    "password":'t1',
-    "port": '5432',
-    "host": 'localhost',
+    "user": 'postgres',
     "database":'appdb'
 }
 
