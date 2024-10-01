@@ -449,7 +449,9 @@ def export():
         # Write headers
         replacements = {
             'answers.answer': 'Dominant hand',
-            'crf.datetimescan': 'date time of scan'
+            'crf.datetimescan': 'date time of scan',
+            'weight':'weight(kg)',
+            'height':'height(m)'
         }
 
         # New array to store the modified values
