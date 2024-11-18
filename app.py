@@ -8,6 +8,7 @@ import pandas as pd
 import io
 from flask import Flask, render_template, request, jsonify, send_file
 import psycopg2
+from Configuration import DB_CONFIG,COLUMN_MAPPING
 from psycopg2 import Error
 import json
 from openpyxl import Workbook
@@ -15,34 +16,10 @@ from io import BytesIO
 import datetime
 import re
 from openpyxl.styles import Font, PatternFill
-
+from search_values import search_values
 app = Flask(__name__, template_folder=os.path.abspath('Templates'))
 app.secret_key = 'your_secret_key'  # Required for flash messaging
-
-
-# Database connection settings
-DB_CONFIG = {
-    "user": 'postgres',
-    "database":'appdb'
-}
-
-# Mapping between application and database column names
-COLUMN_MAPPING = {
-    "T1w": "t1w",
-    "T2w": "t2w",
-    "Flair": "flair",
-    "Rest_fMRI": "restfmri",
-    "Task_fMRI": "taskfmri",
-    "dMRI_AP": "dmriap",
-    "dMRI_PA": "dmripa",
-    "MRTRIX": "mrtrix",
-    "AxSI": "axsi",
-    "QSI": "qsi",
-    "HCP_freesurfer": "hcpfreesurfer",
-    "HCP_Rest_fMRI": "hcprestfmri",
-    "HCP_Task_fMRI": "hcptaskfmri",
-    "HCP_diffusion": "hcpdiffusion"
-}
+s1 = search_values()
 
 # List of all available scan types
 SCAN_TYPES = list(COLUMN_MAPPING.keys())
@@ -98,157 +75,6 @@ def get_distinct_values(connection, app_column_name):
         print(f"Error fetching distinct values for {app_column_name}:", e)
         return []
 
-
-def build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,selected_patient_codes,Study,Group,Protocol,scan_number,Dominant_hand,Dominant_hand_post,update_subjects,Data_output):
-    where_conditions = []
-    params = []
-    include_scans='no'
-    # Process selected types
-    for scan_type, value in selected_types.items():
-        db_column = COLUMN_MAPPING.get(scan_type)
-        if db_column:
-            if str(value) != 'None':
-                if value.lower() == 'ok':
-                    include_scans = 'yes'
-                    # Search for distinct values of the column
-                    distinct_values = get_distinct_values(connection, scan_type)
-                    # If 'OK' is one of the distinct values, add it to the search condition
-                    if value.lower() in distinct_values:
-                        where_conditions.append(f"{db_column} = 'ok'")
-                    elif 'True' in distinct_values:
-                        where_conditions.append(f"{db_column} = 'True'")
-
-    # Process selected genders
-    if selected_genders:
-        gender_condition = f"gender IN ('{selected_genders}')"
-        where_conditions.append(gender_condition)
-
-
-    # Process age range
-    if age_from:
-        where_conditions.append(f"Ageofscan ~ '^[0-9]*\.?[0-9]+$' and  CAST(Ageofscan AS NUMERIC)>= '{age_from}'")
-    if age_to:
-        where_conditions.append(f"Ageofscan ~ '^[0-9]*\.?[0-9]+$' and  CAST(Ageofscan AS NUMERIC)<= '{age_to}'")
-    if weight_from:
-        where_conditions.append(f"weight ~ '^[0-9]*\.?[0-9]+$' and CAST(weight AS NUMERIC)>='{weight_from}'")
-    if weight_to:
-        where_conditions.append(f"weight ~ '^[0-9]*\.?[0-9]+$' and CAST(weight AS NUMERIC)<='{weight_to}'")
-    if height_from:
-        where_conditions.append(f"height ~ '^[0-9]*\.?[0-9]+$' and CAST(height AS NUMERIC)>= '{height_from}'")
-    if height_to:
-        where_conditions.append(f"height ~ '^[0-9]*\.?[0-9]+$' and CAST(height AS NUMERIC)<= '{height_to}'")
-    if Study:
-        where_conditions.append(f"study = '{Study}'")
-    if Group:
-        where_conditions.append(f"groupname = '{Group}'")
-    if Protocol:
-        where_conditions.append(f"protocol = '{Protocol}'")
-    if scan_number:
-        where_conditions.append(f"noscan = '{scan_number}'")
-    if Dominant_hand:
-        where_conditions.append(f"answer = '{Dominant_hand}'")
-
-
-
-    if start_date_of_scan and end_date_of_scan and start_hour_of_scan and end_hour_of_scan:
-        # If all date and time filters are present
-        where_conditions.append(
-            f"crf.datetimescan::date BETWEEN '{start_date_of_scan}' AND '{end_date_of_scan}' AND "
-            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
-        )
-
-    elif start_date_of_scan and end_date_of_scan:
-        # If only date filters are present
-        where_conditions.append(
-            f"crf.datetimescan::date BETWEEN '{start_date_of_scan}' AND '{end_date_of_scan}'"
-        )
-
-    elif start_date_of_scan and not end_date_of_scan and start_hour_of_scan and end_hour_of_scan:
-        # If start date and time filters are present
-        where_conditions.append(
-            f"crf.datetimescan::date >= '{start_date_of_scan}' AND "
-            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
-        )
-
-    elif end_date_of_scan and not start_date_of_scan and start_hour_of_scan and end_hour_of_scan:
-        # If end date and time filters are present
-        where_conditions.append(
-            f"crf.datetimescan::date <= '{end_date_of_scan}' AND "
-            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
-        )
-
-    elif start_hour_of_scan and end_hour_of_scan:
-        # If only time filters are present
-        where_conditions.append(
-            f"crf.datetimescan::time BETWEEN '{start_hour_of_scan}' AND '{end_hour_of_scan}'"
-        )
-
-    elif start_date_of_scan:
-        # If only start date is present
-        where_conditions.append(f"crf.datetimescan::date >= '{start_date_of_scan}'")
-
-    elif end_date_of_scan:
-        # If only end date is present
-        where_conditions.append(f"crf.datetimescan::date <= '{end_date_of_scan}'")
-
-    # Process selected patient codes
-    if update_subjects == 'no':
-      if selected_patient_codes:
-          patient_condition = f"subjects.questionairecode IN ({', '.join(map(repr, selected_patient_codes))})"
-          where_conditions.append(patient_condition)
-
-      if not where_conditions:
-         return None
-
-
-    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
-    # Include the "path" column in the output
-    if update_subjects=='yes':
-       columns = f"""distinct(subjects.questionairecode)"""
-    if update_subjects=='no':
-
-        columns = ', '.join(column.strip("'") for column in Data_output)
-
-    if Dominant_hand or Dominant_hand_post!='no':
-          query = f"""
-                    SELECT {columns}
-                    FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
-                    left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                    {where_clause};
-                   """
-    elif Dominant_hand_post!='no':
-           query = f"""
-                            SELECT {columns}
-                            FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
-                            left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                            {where_clause};
-                           """
-    elif include_scans=='yes':
-           query=f"""
-                    SELECT {columns}
-                    FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode 
-                    left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                    {where_clause};
-                """
-   
-   
-    else:
-          query = f"""
-                    SELECT {columns}
-                    FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode
-                    {where_clause};
-                    """
-
-    try:
-        cursor = connection.cursor()
-        full_query = cursor.mogrify(query, params).decode('utf-8')
-        print("Full query:", full_query)
-        cursor.execute(full_query)
-        results = cursor.fetchall()
-        return results
-    except Exception as e:
-        print(f"Error executing query: {e}")
-        return None
 ##############################filters1 functions
 def clean_value(value):
     if value == 'NaT' or value == 'nan' or (isinstance(value, float) and math.isnan(value)):
@@ -295,28 +121,33 @@ def get_filtered_patient_codes():
     print("Received request for filtered patient codes")
 
     # Extract data from form
-    start_date_of_scan = request.form.get('start_date_of_scan')
-    end_date_of_scan = request.form.get('end_date_of_scan')
-    start_hour_of_scan = request.form.get('start_hour_of_scan')
-    end_hour_of_scan = request.form.get('end_hour_of_scan')
-    study = request.form.get('study')
-    group = request.form.get('group')
-    Protocol = request.form.get('protocol')
-    scan_no = request.form.get('scan_no')
-    gender = request.form.get('gender')
-    age_from = request.form.get('age_from')
-    age_to = request.form.get('age_to')
-    height_from = request.form.get('height_from')
-    height_to = request.form.get('height_to')
-    weight_from = request.form.get('weight_from')
-    weight_to = request.form.get('weight_to')
-    Dominant_hand = request.form.get('Dominant_hand')
+    search_values.get_instance().set_start_date_of_scan(request.form.get('start_date_of_scan'))
+    search_values.get_instance().set_end_date_of_scan(request.form.get('end_date_of_scan'))
+    search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
+    search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
+    search_values.get_instance().set_study(request.form.get('study'))
+    search_values.get_instance().set_group(request.form.get('group'))
+    search_values.get_instance().set_protocol(request.form.get('protocol'))
+    search_values.get_instance().set_scan_number(request.form.get('scan_no'))
+    search_values.get_instance().set_selected_genders(request.form.get('gender'))
+    search_values.get_instance().set_age_from(request.form.get('age_from'))
+    search_values.get_instance().set_age_to(request.form.get('age_to'))
+    search_values.get_instance().set_height_from(request.form.get('height_from'))
+    search_values.get_instance().set_height_to(request.form.get('height_to'))
+    search_values.get_instance().set_weight_from(request.form.get('weight_from'))
+    search_values.get_instance().set_weight_to(request.form.get('weight_to'))
+    search_values.get_instance().set_dominant_hand(request.form.get('Dominant_hand'))
 
     # Extract protocol data
-    protocols = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
-    connection = connect_to_db()
-    if connection:
-        patient_codes = build_and_execute_query(connection, protocols,gender, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from, weight_to,height_from,height_to,' ',study,group,Protocol,scan_no,Dominant_hand,'no','yes','NULL')
+    scan_types = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
+    search_values.get_instance().set_selected_types(scan_types)
+    search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
+    if search_values.get_instance().get_connection:
+        search_values.get_instance().set_selected_patient_codes('')
+        search_values.get_instance().set_dominant_hand_post('no')
+        search_values.get_instance().set_update_subjects('yes')
+        search_values.get_instance().append_to_data_output('NULL')
+        patient_codes = search_values.get_instance().build_and_execute_query()
         patient_codes.sort()
         print("Returning patient codes:", patient_codes)
         return jsonify(patient_codes)
@@ -329,169 +160,126 @@ def index():
       if connection:
         cursor = connection.cursor()
         cursor.execute("SELECT DISTINCT questionairecode FROM crf")
-        patient_codes = [row[0] for row in cursor.fetchall()]
-        patient_codes.sort()  # Sort patient codes alphabetically
+        patient_codes = [row[0] for row in cursor.fetchall() if row[0] is not None]
+        patient_codes.sort()  # Sort patient codes alphabetically        # Sort patient codes alphabetically
         cursor.execute("SELECT DISTINCT groupname FROM crf where groupname <>'NULL' and groupname<>''")
-        group_names = [row[0] for row in cursor.fetchall()]
+        group_names = [row[0] for row in cursor.fetchall() if row[0] is not None]
         group_names.sort()  # Sort patient codes alphabetically
         cursor.execute("SELECT DISTINCT Protocol FROM crf where Protocol <>'NULL' and Protocol<>'nan'")
-        Protocols = [row[0] for row in cursor.fetchall()]
+        Protocols = [row[0] for row in cursor.fetchall() if row[0] is not None]
         Protocols.sort()  #
         cursor.execute("SELECT DISTINCT study FROM crf where study <>'NULL' and study<>'nan'")
-        studies = [row[0] for row in cursor.fetchall()]
+        studies = [row[0] for row in cursor.fetchall() if row[0] is not None]
         studies.sort()
-        cursor.execute("SELECT DISTINCT noscan FROM crf where noscan <>'NULL' and noscan<>'nan'")
-        scan_numbers = [row[0] for row in cursor.fetchall()]
+        cursor.execute("SELECT DISTINCT FLOOR(CAST(noscan AS NUMERIC))::INT AS noscan_int FROM crf WHERE noscan NOT IN ('NULL', 'nan');")
+        scan_numbers = [row[0] for row in cursor.fetchall() if row[0] is not None]
         scan_numbers.sort()
         cursor.execute("select distinct(answer) from answers where questioneid='4' and answer <>'nan'")
-        Dominant_hand = [row[0] for row in cursor.fetchall()]
+        Dominant_hand = [row[0] for row in cursor.fetchall() if row[0] is not None]
         Dominant_hand.sort()
         cursor.execute("SELECT * FROM questiones WHERE questioneid >= 14 AND questioneid <= 15")
-        custom_questions = [row[1] for row in cursor.fetchall()]
+        custom_questions = [row[1] for row in cursor.fetchall() if row[0] is not None]
         cursor.execute("SELECT * FROM questiones WHERE questioneid >= 23 AND questioneid <= 28")
-        education_work_questions = [row[1] for row in cursor.fetchall()]
+        education_work_questions = [row[1] for row in cursor.fetchall() if row[0] is not None]
         cursor.execute("SELECT * FROM questiones WHERE questioneid >= 313 AND questioneid <= 329")
-        music_questions = [row[1] for row in cursor.fetchall()]
+        music_questions = [row[1] for row in cursor.fetchall() if row[0] is not None]
         all_questions =custom_questions + education_work_questions + music_questions
         connection.close()
-      if request.method == 'POST':
-        selected_patient_codes = request.form.getlist('subjects[]')
-        selected_types = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
-        selected_genders = request.form.getlist('gender')
-        age_from = request.form.get('age_from')
-        age_to = request.form.get('age_to')
-        start_date_of_scan = request.form.get('start_date_of_scan')
-        start_hour_of_scan = request.form.get('start_hour_of_scan')
-        end_date_of_scan = request.form.get('end_date_of_scan')
-        end_hour_of_scan = request.form.get('end_hour_of_scan')
-        weight_from = request.form.get('height_from')
-        weight_to = request.form.get('height_to')
-        height_from = request.form.get('height_from')
-        height_to = request.form.get('height_to')
-        Study = request.form.get('study')
-        Group = request.form.get('group')
-        Protocol = request.form.get('Protocol')
-        scan_number = request.form.get('scan_no')
-        selected_patient_codes = request.form.getlist('selected_patient_codes')
-        Dominant_hand = request.form.getlist('Dominant_hand')
-        connection = connect_to_db()
-        if connection:
-            all_columns = get_all_columns(connection, "scans")
-            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to, start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan, weight_from,weight_to,height_from,height_to,selected_patient_codes, all_columns,Study,Group,Protocol,scan_number,Dominant_hand[0],'no','no','NULL')
-            connection.close()
-
-            if results:
-                return render_template('results.html', columns=['path'], results=results, message=None)
-            else:
-                return render_template('results.html', columns=['path'], results=[], message="No data found.")
-
       return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,protocols=Protocols,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
     else:
         return render_template('loginPage.html')
 
 
 
-
 @app.route('/export', methods=['POST'])
 def export():
-    # Get all the form data
-    connection = connect_to_db()
-    cursor = connection.cursor()
+    search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
+    cursor = search_values.get_instance().connection.cursor()
     file = request.files.get('file')
     selected_types = {}
+    search_values.get_instance().Data_output = []
+    # Populate selected_types dictionary
     for scan_type in SCAN_TYPES:
         values = request.form.getlist(scan_type)
-        if values:
-            selected_types[scan_type] = values[0]
-        else:
-            selected_types[scan_type] = ''
-    if request.form.getlist('gender'):
-       selected_genders = request.form.getlist('gender')[0]
-    else:
-       selected_genders = request.form.getlist('gender')
-    Dominant_hand_post=request.form.getlist('Dominant.hand')
-    Data_output = []
-    if Dominant_hand_post:
-        Data_output.append('answers.answer')
-    age_from = request.form.get('age_from')
-    age_to = request.form.get('age_to')
-    start_date_of_scan = request.form.get('start_date_of_scan')
-    start_hour_of_scan = request.form.get('start_hour_of_scan')
-    end_date_of_scan = request.form.get('end_date_of_scan')
-    end_hour_of_scan = request.form.get('end_hour_of_scan')
-    weight_from = request.form.get('height_from')
-    weight_to = request.form.get('height_to')
-    height_from = request.form.get('height_from')
-    height_to = request.form.get('height_to')
-    Study = request.form.get('study')
-    Group = request.form.get('group')
-    Protocol = request.form.get('protocol')
-    scan_number = request.form.get('scan_no')
-    selected_patient_codes = request.form.getlist('selected_patient_codes')
-    if request.form.getlist('Dominant_hand'):
-        Dominant_hand = request.form.getlist('Dominant_hand')[0]
-    else:
-        Dominant_hand = request.form.getlist('Dominant_hand')
-    # Connect to the database and get results
-    fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol','Group','bidspath','resultspath','rawdatapath','Dominant.hand']
+        selected_types[scan_type] = values[0] if values else ''
 
-    # Iterate through each field
+    selected_genders = request.form.getlist('gender')[0] if request.form.getlist('gender') else ''
+
+    # Set Singleton attributes
+
+    search_values.get_instance().set_selected_types(selected_types)
+    search_values.get_instance().set_dominant_hand_post(request.form.getlist('Dominant.hand'))
+    if search_values.get_instance().get_dominant_hand_post():
+        search_values.get_instance().append_to_data_output('answers.answer')
+    search_values.get_instance().set_age_from(request.form.get('age_from'))
+    search_values.get_instance().set_age_to(request.form.get('age_to'))
+    search_values.get_instance().set_start_date_of_scan(request.form.get('start_date_of_scan'))
+    search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
+    search_values.get_instance().set_end_date_of_scan(request.form.get('end_date_of_scan'))
+    search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
+    search_values.get_instance().set_weight_from(request.form.get('weight_from'))
+    search_values.get_instance().set_weight_to(request.form.get('weight_to'))
+    search_values.get_instance().set_height_from(request.form.get('height_from'))
+    search_values.get_instance().set_height_to(request.form.get('height_to'))
+    search_values.get_instance().set_study(request.form.get('study'))
+    search_values.get_instance().set_group(request.form.get('group'))
+    search_values.get_instance().set_protocol(request.form.get('protocol'))
+    search_values.get_instance().set_scan_number(request.form.get('scan_no'))
+    search_values.get_instance().set_kepreppath(request.form.get('kepreppath'))
+    search_values.get_instance().set_kepostpath(request.form.get('kepostpath'))
+    search_values.get_instance().set_freesurferpath(request.form.get('freesurferpath'))
+    selected_patient_codes=request.form.getlist('selected_patient_codes')
+    search_values.get_instance().set_dominant_hand(
+        request.form.getlist('Dominant_hand')[0] if request.form.getlist('Dominant_hand') else ''
+    )
+
+    # Define the fields and process Data_output
+    fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol', 'Group',
+              'bidspath', 'resultspath', 'rawdatapath', 'Dominant.hand','kepreppath','kepostpath','freesurferpath']
     for field in fields:
         value = request.form.get(field)
-        if value and value != 'None' and value!='Dominant.hand':  # Check if it's not None or 'None'
-            Data_output.append(value)  # Append to the output list
+        if value and value not in ['None']:
+            search_values.get_instance().append_to_data_output(value)
 
-    connection = connect_to_db()
-    if connection and selected_patient_codes:
+    # Database query and Excel export
+    if search_values.get_instance().connection and selected_patient_codes:
         wb = Workbook()
         ws = wb.active
-        ws.title = f"Subject details at the time of the scan"
-        # Write headers
+        ws.title = "Subject details at the time of the scan"
+
+        # Headers setup
         replacements = {
             'answers.answer': 'Dominant hand',
             'crf.datetimescan': 'date time of scan',
-            'weight':'weight(kg)',
-            'height':'height(m)'
+            'weight': 'weight(kg)',
+            'height': 'height(m)',
+            'kepreppath':'keprep path',
+            'kepostpath': 'kepost path',
+            'freesurferpath': 'freesurfer path'
         }
-
-        # New array to store the modified values
-        header_output = [replacements.get(item, item) for item in Data_output]
-
-        headers =["Subject Code"]+["Questionaire Code"] + [column for column in header_output]
+        headers = ["Subject Code", "Questionaire Code"] + [replacements.get(col, col) for col in search_values.get_instance().get_data_output()]
         append_and_color_header(ws, headers, "FFFFFF00")
+        search_values.get_instance().set_update_subjects('no')
+        search_values.get_instance().set_dominant_hand_post('yes')
+        # Query and populate data rows
         rows_to_append = []
         for code in selected_patient_codes:
-            newcode=[]
-            newcode.append(code)
-            results = build_and_execute_query(connection, selected_types, selected_genders, age_from, age_to,
-                                              start_date_of_scan, start_hour_of_scan, end_date_of_scan, end_hour_of_scan,
-                                              weight_from, weight_to, height_from, height_to,newcode, Study, Group, Protocol, scan_number,Dominant_hand,'yes','no',Data_output)
-
-
-
+            search_values.get_instance().set_selected_patient_codes([code])
+            results = search_values.get_instance().build_and_execute_query()
             if results:
-                # Clean and flatten the result
                 for result in results:
-                   cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                    cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                    query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
+                    cursor.execute(query)
+                    subjects_code = cursor.fetchone()
+                    if subjects_code:
+                        rows_to_append.append([subjects_code[0], code] + cleaned_result)
 
-                   # Query for the subjects_code using the 'code'
-                   query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
-                   cursor.execute(query)
-                   subjects_code = cursor.fetchone()
-
-                   if subjects_code:
-                    # Prepare the row in the required order
-                    row_to_append = [subjects_code[0]] + [code] + cleaned_result
-                    # Add the row to the list
-                    rows_to_append.append(row_to_append)
-
-            # Sort all rows by the first element (subjects_code[0])
         rows_to_append.sort(key=lambda x: x[0])
-
-            # Append all sorted rows to the worksheet
         for row in rows_to_append:
             ws.append(row)
-            # Create an Excel file in memory
+
+        # Create an Excel file in memory
         excel_file = BytesIO()
         wb.save(excel_file)
         excel_file.seek(0)
@@ -503,6 +291,7 @@ def export():
         )
 
     return Response("No data found or an error occurred", status=400)
+
 ########## filter1
 # @app.route('/', methods=['GET', 'POST'])
 # def filter_page():
