@@ -318,6 +318,7 @@ class search_values:
 
         if self.update_subjects == 'yes':
             columns = f"""distinct(subjects.questionairecode)"""
+            where_clause=where_clause+f" And subjects.questionairecode IS NOT NULL AND subjects.questionairecode <> '' and subjects.questionairecode<>'nan'"
         if self.update_subjects == 'no':
             columns = ', '.join(column.strip("'") for column in self.Data_output)
 

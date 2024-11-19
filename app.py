@@ -159,7 +159,7 @@ def index():
       connection = connect_to_db()
       if connection:
         cursor = connection.cursor()
-        cursor.execute("SELECT DISTINCT questionairecode FROM crf")
+        cursor.execute("SELECT distinct(questionairecode) FROM crf WHERE questionairecode IS NOT NULL AND questionairecode <> '' and questionairecode<>'nan'")
         patient_codes = [row[0] for row in cursor.fetchall() if row[0] is not None]
         patient_codes.sort()  # Sort patient codes alphabetically        # Sort patient codes alphabetically
         cursor.execute("SELECT DISTINCT groupname FROM crf where groupname <>'NULL' and groupname<>''")
