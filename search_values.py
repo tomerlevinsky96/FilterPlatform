@@ -219,6 +219,7 @@ class search_values:
         params = []
         include_scans = 'no'
         # Process selected types
+        where_protocol_condition=[]
         for scan_type, value in self.query_values['selected_types'].items():
             db_column = COLUMN_MAPPING.get(scan_type)
             if db_column:
@@ -228,10 +229,13 @@ class search_values:
                         # Search for distinct values of the column
                         distinct_values = search_values.get_instance().get_distinct_values(scan_type)
                         # If 'OK' is one of the distinct values, add it to the search condition
-                        if value.lower() in distinct_values:
-                            where_conditions.append(f"{db_column} = 'ok'")
-                        elif 'True' in distinct_values:
-                            where_conditions.append(f"{db_column} = 'True'")
+                        for value in distinct_values:
+                            if value is not None and value.lower() not in ['failed', 'none']:
+                                where_protocol_condition.append(f"{db_column} = '{value}'")
+        if len(where_protocol_condition)>0:
+            where_protocol_condition= f"({' OR '.join(where_protocol_condition)})" if where_protocol_condition else ""
+            where_conditions.append(where_protocol_condition)
+
 
         # Process selected genders
         if self.query_values['selected_genders']:
