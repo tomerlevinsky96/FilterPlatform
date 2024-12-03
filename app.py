@@ -241,6 +241,8 @@ def export():
         if value and value not in ['None']:
             search_values.get_instance().append_to_data_output(value)
 
+
+
     # Database query and Excel export
     if search_values.get_instance().connection and selected_patient_codes:
         wb = Workbook()
@@ -250,7 +252,7 @@ def export():
         # Headers setup
         replacements = {
             'answers.answer': 'Dominant hand',
-            'crf.datetimescan': 'date time of scan',
+            'crf.scanid': 'Scan Id',
             'weight': 'weight(kg)',
             'height': 'height(m)',
             'kepreppath':'keprep path',
@@ -258,6 +260,9 @@ def export():
             'freesurferpath': 'freesurfer path'
         }
         headers = ["Subject Code", "Questionaire Code"] + [replacements.get(col, col) for col in search_values.get_instance().get_data_output()]
+        if 'crf.scanid' in headers:
+            headers.remove('crf.scanid')
+            headers.insert(0, 'crf.scanid')
         append_and_color_header(ws, headers, "FFFFFF00")
         search_values.get_instance().set_update_subjects('no')
         search_values.get_instance().set_dominant_hand_post('yes')
