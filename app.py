@@ -301,19 +301,38 @@ def export():
 #     # Existing context data
 #     return render_template('search_scans.html', all_questions=locations)
 
+def are_codes_in_scanid_format(codes,scan_id_or_code):
+    """
+    Check if all codes in the array match the format yyyymmdd_hhmm.
+
+    Args:
+        codes (list): List of code strings to validate.
+
+    Returns:
+        bool: True if all codes match the format, False otherwise.
+    """
+    # Define the regex pattern for yyyymmdd_hhmm
+    if scan_id_or_code=='scan_id':
+       pattern = r'^\d{8}_\d{4}$'
+    elif scan_id_or_code=='questionirecode':
+       pattern = r'^[^\s_]*$'
+    for code in codes:
+        if not re.match(pattern, code):
+            return False
+    return True
+
+
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files and 'additionalDetails' not in request.form and 'selectedQuestions' not in request.form:
         return jsonify({'error': 'No file, data, or selected questions provided'})
     detail_type = request.form.get('detailType')
-
-
+    search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
     file = request.files.get('file')
     data_text = request.form.get('additionalDetails')
-    selected_questions = json.loads(request.form.get('selectedQuestions', '[]'))
-
-    codes_array = []
-
+    codes_or_scanids_array = []
     if file and file.filename:
         try:
             file_content = file.read()
@@ -324,180 +343,155 @@ def upload_file():
             else:
                 return jsonify({'error': 'Unsupported file format'})
 
-            codes_array = df.values.flatten().tolist()
+            codes_or_scanids_array = df.values.flatten().tolist()
             # Regular expression pattern for matching paths or IDs
             pattern = re.compile(r'^([A-Za-z]:?(?:[\w-]+[/\\])*[\w-]+|[A-Za-z0-9_]+|[A-Za-z0-9]{6,})$')
 
-            codes_array = [
-                code for code in codes_array
+            codes_or_scanids_array = [
+                code for code in codes_or_scanids_array
                 if (isinstance(code, str) and pattern.match(code)) or
                    (isinstance(code, (int, float)) and not pd.isna(code) and pattern.match(str(code)))
             ]
-            if 'Uploaded' in codes_array:
-                codes_array=codes_array[:-3]
+            if 'Uploaded' in codes_or_scanids_array:
+                codes_or_scanids_array=codes_or_scanids_array[:-3]
 
 
 
         except Exception as e:
             return jsonify({'error': str(e)})
 
-    elif data_text and len(codes_array)==0:
-        codes_array.extend(data_text.split())
+    elif data_text and len(codes_or_scanids_array)==0:
+        codes_or_scanids_array.extend(data_text.split())
 
-    elif not codes_array:
+    elif not codes_or_scanids_array:
         return jsonify({'error': 'No valid patient codes provided'})
-
-    elif not selected_questions:
-        return jsonify({'error': 'No questions selected'})
 
     conn = connect_to_db()
     if not conn:
         return jsonify({'error': 'Unable to connect to the database'})
+    search_values.get_instance().Data_output = []
+    search_values.get_instance().append_to_data_output('bidspath')
+    search_values.get_instance().append_to_data_output('rawdatapath')
+    search_values.get_instance().append_to_data_output('kepreppath')
+    search_values.get_instance().append_to_data_output('kepostpath')
+    search_values.get_instance().append_to_data_output('freesurferpath')
+    search_values.get_instance().set_update_subjects('no')
+    search_values.get_instance().set_dominant_hand_post('yes')
+    cursor = search_values.get_instance().connection.cursor()
+    if detail_type == 'QuestionaireCode':
+        search_values.get_instance().append_to_data_output('scanid')
+        if are_codes_in_scanid_format(codes_or_scanids_array,'questionirecode')==False:
+            return jsonify({'error': 'No valid questionaire codes provided'})
+        if search_values.get_instance().connection:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Subject details at the time of the scan"
 
-    try:
-        with (conn.cursor() as cur):
-            crf_columns = ['groupname', 'Ageofscan', 'gender', 'scanno','datetimescan', 'height', 'weight', 'study', 'Protocol','scanfile']
-            question_ids = ', '.join(f"'{qid}'" for qid in selected_questions if qid not in crf_columns)
+            # Headers setup
+            replacements = {
+                'answers.answer': 'Dominant hand',
+                'crf.datetimescan': 'date time of scan',
+                'weight': 'weight(kg)',
+                'height': 'height(m)',
+                'kepreppath': 'keprep path',
+                'kepostpath': 'kepost path',
+                'freesurferpath': 'freesurfer path'
+            }
+            headers = ["Subject Code", "Questionaire Code"] + [replacements.get(col, col) for col in
+                                                               search_values.get_instance().get_data_output()]
+            append_and_color_header(ws, headers, "FFFFFF00")
+            search_values.get_instance().set_update_subjects('no')
+            search_values.get_instance().set_dominant_hand_post('yes')
+            # Query and populate data rows
+            rows_to_append = []
+            for code in codes_or_scanids_array:
+                search_values.get_instance().set_selected_patient_codes([code])
+                results = search_values.get_instance().build_and_execute_query()
+                if results:
+                   for result in results:
+                        cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                        query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
+                        cursor.execute(query)
+                        subjects_code = cursor.fetchone()
+                        if subjects_code:
+                            rows_to_append.append([subjects_code[0], code] + cleaned_result)
+                else:
+                    query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
+                    cursor.execute(query)
+                    subjects_code = cursor.fetchone()
+                    if subjects_code:
+                        rows_to_append.append([subjects_code[0], code] + ['no data found'])
+            rows_to_append.sort(key=lambda x: x[0])
+            for row in rows_to_append:
+                ws.append(row)
 
-            if question_ids!="":
-              cur.execute(f"SELECT questioneid, question FROM questiones WHERE questioneid IN ({question_ids})")
-              categories = cur.fetchall()
+            # Create an Excel file in memory
+            excel_file = BytesIO()
+            wb.save(excel_file)
+            excel_file.seek(0)
+            return send_file(
+                excel_file,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name='results.xlsx'
+            )
 
+        return Response("No data found or an error occurred", status=400)
 
+    elif detail_type == 'scanid':
+        if search_values.get_instance().connection:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Subject details at the time of the scan"
+            # Headers setup
+            replacements = {
+                'answers.answer': 'Dominant hand',
+                'crf.datetimescan': 'date time of scan',
+                'weight': 'weight(kg)',
+                'height': 'height(m)',
+                'kepreppath': 'keprep path',
+                'kepostpath': 'kepost path',
+                'freesurferpath': 'freesurfer path'
+            }
+            headers = ["Scan Ids"] + [replacements.get(col, col) for col in
+                                                               search_values.get_instance().get_data_output()]
+            append_and_color_header(ws, headers, "FFFFFF00")
+            search_values.get_instance().set_update_subjects('no')
+            search_values.get_instance().set_dominant_hand_post('yes')
+            # Query and populate data rows
+            rows_to_append = []
+            if are_codes_in_scanid_format(codes_or_scanids_array,'scan_id')==False:
+               return jsonify({'error': 'No valid scan ids provided'})
+            for code in codes_or_scanids_array:
+                search_values.get_instance().set_selected_scanids([code])
+                results = search_values.get_instance().build_and_execute_query()
+                if results:
+                    for result in results:
+                        cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                        rows_to_append.append([code] + cleaned_result)
+                else:
+                    query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
+                    cursor.execute(query)
+                    subjects_code = cursor.fetchone()
+                    if subjects_code:
+                        rows_to_append.append([subjects_code[0], code] + ['no data found'])
 
-            # Fetch answers
-            results = {}
-            answer_columns=['questioneid','answer']
-            answer_questionsids = [str(i) for i in range(1, 501)]
-            select_columns=[]
-            left_joins = []
-            flag=0
-            headers = ["Questionaire Code"]
-            for column in crf_columns:
-                if column in selected_questions:
-                    if column=='datetimescan' and detail_type=='pathScanFile':
-                       select_columns.append(f"crf.{column}")
-                    else:
-                       select_columns.append(f"{column}")
-                    headers=headers+[column]
-            if detail_type=='questionairecode' or detail_type=='pathScanFile':
-            # Create Excel file
-              wb = Workbook()
-              ws = wb.active
-              ws.title = "Results"
-              # Write headers
-              headers = ["Questionaire Code"] + [qid for qid in selected_questions if qid in crf_columns]
-              conn = connect_to_db()
-              with conn.cursor() as cur:
-                if select_columns:
-                  ws.append([""])
-                  select_columns_str = ", ".join(select_columns)
-                  headers=["Subject"]+["details"]+["at"]+["the"]+["time"]+["of"]+["the"]+["scan"]
-                  append_and_color_header(ws, headers, "FFFFFF00")
-                  ws.append([""])
-                  ws.append([""])
-                  if detail_type=='subjectId':
-                    headers=["Subject ID"]+select_columns
-                    ws.append(headers)
-                  elif detail_type=='pathScanFile':
-                    headers = ["Path Scan File"] + select_columns
-                    ws.append(headers)
-                  if detail_type=='subjectId':
-                    for code in codes_array:
-                      query = f""" SELECT {select_columns_str}
-                                   FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode
-                                   WHERE subjects.questionairecode = ('{code}')
-                               """
-                      cur.execute(query)
-                      result = cur.fetchone()
-                      if result:
-                          cleaned_result = [clean_value(value) for value in result]
-                          ws.append([code]+cleaned_result)
-                  elif detail_type=='pathScanFile':
-                      for code in codes_array:
-                          query = f""" SELECT {select_columns_str}
-                                       FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode inner join scans on crf.datetimescan=scans.datetimescan
-                                       WHERE scans.rawdatapath = ('{code}')
-                                 """
-                          cur.execute(query)
-                          result = cur.fetchone()
-                          if result:
-                              cleaned_result = [clean_value(value) for value in result]
-                              ws.append([code] + cleaned_result)
-                if question_ids!="":
-                   cur.execute(f""" SELECT questioneid,question
-                                    from questiones
-                                    where questioneid IN ({question_ids}) order by questioneid""")
-                   questions = cur.fetchall()
-                   ws.append([""])
-                   headers = ["Subject"] + ["details"] + ["from"] + ["questionaire"]
-                   append_and_color_header(ws, headers, "FFFF0000")
+            rows_to_append.sort(key=lambda x: x[0])
+            for row in rows_to_append:
+                ws.append(row)
 
-                   result=""
-                   if detail_type == 'subjectId':
-                     headers = ["Subject ID"] + [question[1] for question in questions]
-                     ws.append([""])
-                     ws.append([""])
-                     ws.append(headers)
-                     for code in codes_array:
-                       query = f""" SELECT answers.questioneid,answers.answer
-                                    FROM subjects inner join answers on subjects.questionairecode=answers.questionairecode
-                                    WHERE subjects.questionairecode = ('{code}') and answers.questioneid IN ({question_ids})
-                                """
-                       cur.execute(query)
-                       result = cur.fetchall()
-                       keys = [item[0] for item in result]
-                       question_ids_temp = re.findall(r'\d+', question_ids)
-                       # Convert the extracted strings to integers
-                       question_ids_temp = [int(num) for num in question_ids_temp]
-                       for question_id_temp in question_ids_temp:
-                           if question_id_temp not in keys:
-                               result.append((question_id_temp, 'Nan'))
-                       processed_data = process_flexible_data(headers, code, result)
-                       for data in processed_data:
-                           ws.append(data)
-                   elif detail_type == 'pathScanFile':
-                     headers = ["Path Scan File"] + [question[1] for question in questions]
-                     ws.append([""])
-                     ws.append([""])
-                     ws.append(headers)
-                     for code in codes_array:
-                        query = f""" SELECT answers.questioneid,answers.answer
-                                        FROM subjects inner join answers on subjects.questionairecode=answers.questionairecode
-                                        inner join crf on subjects.questionairecode=crf.questionairecode inner join scans on crf.datetimescan=scans.datetimescan
-                                        WHERE scans.rawdatapath = ('{code}') and answers.questioneid IN ({question_ids})
-                                    """
-                        cur.execute(query)
-                        result = cur.fetchall()
-                        keys = [item[0] for item in result]
-                        question_ids_temp = re.findall(r'\d+', question_ids)
+            # Create an Excel file in memory
+            excel_file = BytesIO()
+            wb.save(excel_file)
+            excel_file.seek(0)
+            return send_file(
+                excel_file,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name='results.xlsx'
+            )
 
-# Convert the extracted strings to integers
-                        question_ids_temp = [int(num) for num in question_ids_temp]
-                        for question_id_temp in question_ids_temp:
-                          if question_id_temp not in keys:
-                              result.append((question_id_temp, 'Nan'))
-                        processed_data=process_flexible_data(headers, code, result)
-                        for data in processed_data:
-                            ws.append(data)
-                        ws.append(processed_data)
-              excel_file = BytesIO()
-              wb.save(excel_file)
-              excel_file.seek(0)
-              return send_file(
-                      excel_file,
-                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                      as_attachment=True,
-                      download_name='results.xlsx'
-              )
-    except psycopg2.Error as e:
-        print(f"Database error: {e}")
-        return jsonify({'error': 'Database error occurred while processing questions'})
-    finally:
-        if conn:
-            conn.close()
-
-
+        return Response("No data found or an error occurred", status=400)
 @app.route('/get_questions', methods=['GET'])
 def get_questions():
     category = request.args.get('category')

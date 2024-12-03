@@ -1,6 +1,9 @@
 DB_CONFIG = {
-    "user": 'postgres',
-    "database":'appdata',
+    "user": 'tomer',
+    "database":'appdb',
+    "port":5432,
+    "host":"localhost",
+    "password":'t1'
 }
 
 # Mapping between application and database column names
@@ -9,6 +12,6 @@ COLUMN_MAPPING = {
     "MPRAGE": "mprage",
     "Diffusion": "diffusion",
     "RSfMRI": "rsfmri",
-    "ENBack": "enback",
+    "Emotional N-back": "enback",
     "NatfMRI": "natfmri"
 }

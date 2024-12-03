@@ -125,61 +125,13 @@
                 <select id="detailType" name="detailType">
                     <option value="">Select a type</option>
                     <option value="QuestionaireCode">Questionaire code</option>
-                    <option value="pathScanFile">Path Scan File</option>
+                    <option value="scanid">Scan id(date time of scan)</option>
                 </select>
                 <h2>Paste the details according to the search type:</h2>
                 <textarea id="additionalDetails" name="additionalDetails" rows="5" placeholder="Paste additional details or upload a file..." oninput="clearFileInput()"></textarea>
-                <div class="file-upload">
-                    <i class="fas fa-paperclip" onclick="document.getElementById('fileInput').click();"></i>
-                    <input type="file" id="fileInput" name="file" accept=".pdf,.doc,.docx,.csv,.xlsx,.xls" onchange="handleFileChange(this)">
-                </div>
-            </div>
-            <div class="select-group">
-                <h2>Options to Choose</h2>
-                <label for="categoryOptions">Category</label>
-                <select id="categoryOptions" name="categoryOptions">
-                    <option value="">Select a category</option>
-                    <option value="Most_common_questions">Most common questions</option>
-                    <option value="subject_details_at_the_time_of_scan">Subject details at the time of scan</option>
-                    <option value="דמוגרפי כללי">שאלון דמוגרפי כללי</option>
-                    <option value="שפה ושיוך">שאלון שפה ושיוך</option>
-                    <option value="מצב משפחתי">שאלון מצב משפחתי</option>
-                    <option value="השכלה ומקצוע">שאלון השכלה ומקצוע</option>
-                    <option value="תחביבים והעדפות">שאלון תחביבים והעדפות</option>
-                    <option value="שאלון שינה"> שאלון שינה</option>
-                    <option value="מצב בריאותי">שאלון  מצב בריאותי</option>
-                    <option value="שאלון אישיות"> שאלון אישיות</option>
-                    <option value="שאלון פסיכומטרי">שאלון פסיכומטרי</option>
-                    <option value="שאלון חרדה"> שאלון חרדה OASIS</option>
-                    <option value="שאלון פוביות">שאלון פוביות</option>
-                    <option value="שאלון צאצאים שורדי שואה">שאלון צאצאים שורדי שואה</option>
-                    <option value="אורח חיים ועמדות">שאלון אורח חיים ועמדות</option>
-                    <option value="שאלון מוזיקה"> שאלון מוזיקה</option>
-                    <option value="שאלון תכנות">שאלון תכנות</option>
-                    <option value="שאלון סמארטפון">שאלון סמארטפון</option>
-                    <option value="שאלון דיכאון וחרדה">שאלון דיכאון וחרדה GAD</option>
-                    <option value="שאלון פוסט טראומה">שאלון פוסט טראומה GAD</option>
-                    <option value="שאלון שבעה באוקטובר">שאלון שבעה באוקטובר</option>
-                    <option value="תחביבים והעדפות">שאלון תחביבים והעדפות</option>
-                    <option value="אורח חיים ועמדות">שאלון אורח חיים ועמדות</option>
-                    <option value="שאלות סיום">שאלון שאלות סיום</option>
-                    <option value="All the questions">כל השאלות מכל השאלונים</option>
-                </select>
-                <label for="questionOptions">Questions from the category</label>
-                <div class="select-group">
-                    <select id="questionOptions" name="questionOptions[]" multiple style="height: 200px;" class="scrollable-select"></select>
-                    <div class="select-group-buttons">
-                        <button type="button" id="addQuestion" class="arrow-button">&#9660;</button>
-                        <button type="button" id="removeQuestion" class="arrow-button">&#9650;</button>
-                    </div>
-                    <label>Selected questions
-                       <select id="selectedQuestions" name="selectedQuestions[]" multiple style="height: 200px;" class="scrollable-select"></select>
-                    </label>
-                </div>
             </div>
             <button type="submit">Submit Qualifications</button>
         </form>
-
         <div id="result"></div>
     </div>
 

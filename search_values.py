@@ -40,7 +40,8 @@ class search_values:
                 'selected_genders': None, \
                 'kepreppath':None, \
                 'kepostpath':None, \
-                'freesurferpath':None
+                'freesurferpath':None,
+                'scanid':None
             }
 
     def __new__(cls):
@@ -63,6 +64,9 @@ class search_values:
 
     def get_age_from(self):
         return self.query_values['age_from']
+
+
+
 
     def set_age_from(self, value):
         self.query_values['age_from'] = value
@@ -126,6 +130,9 @@ class search_values:
 
     def set_selected_patient_codes(self, value):
         self.query_values['selected_patient_codes']=value
+
+    def set_selected_scanids(self, value):
+        self.query_values['scanid'] = value
 
     def get_study(self):
         return self.query_values['Study']
@@ -220,7 +227,8 @@ class search_values:
         include_scans = 'no'
         # Process selected types
         where_protocol_condition=[]
-        for scan_type, value in self.query_values['selected_types'].items():
+        if self.query_values['selected_types']:
+         for scan_type, value in self.query_values['selected_types'].items():
             db_column = COLUMN_MAPPING.get(scan_type)
             if db_column:
                 if str(value) != 'None':
@@ -241,7 +249,6 @@ class search_values:
         if self.query_values['selected_genders']:
             gender_condition = f"gender IN ('{self.query_values['selected_genders']}')"
             where_conditions.append(gender_condition)
-
         # Process age range
         if self.query_values['age_from']:
             where_conditions.append(
@@ -314,9 +321,11 @@ class search_values:
             if self.query_values['selected_patient_codes']:
                 patient_condition = f"subjects.questionairecode IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))})"
                 where_conditions.append(patient_condition)
-
-            if not where_conditions:
-                return None
+            elif self.query_values['scanid']:
+                patient_condition = f"crf.scanid IN ({', '.join(map(repr, self.query_values['scanid']))})"
+                where_conditions.append(patient_condition)
+        if not where_conditions:
+            return None
 
         where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
