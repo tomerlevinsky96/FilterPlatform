@@ -260,9 +260,6 @@ def export():
             'freesurferpath': 'freesurfer path'
         }
         headers = ["Subject Code", "Questionaire Code"] + [replacements.get(col, col) for col in search_values.get_instance().get_data_output()]
-        if 'crf.scanid' in headers:
-            headers.remove('crf.scanid')
-            headers.insert(0, 'crf.scanid')
         append_and_color_header(ws, headers, "FFFFFF00")
         search_values.get_instance().set_update_subjects('no')
         search_values.get_instance().set_dominant_hand_post('yes')
@@ -318,9 +315,9 @@ def are_codes_in_scanid_format(codes,scan_id_or_code):
     """
     # Define the regex pattern for yyyymmdd_hhmm
     if scan_id_or_code=='scan_id':
-       pattern = r'^\d{8}_\d{4}$'
+       pattern = r'^\[?\d{8}_\d{4}\]?$'
     elif scan_id_or_code=='questionirecode':
-       pattern = r'^[^\s_]*$'
+       pattern = r'^\[?[^\s_]*\]?$'
     for code in codes:
         if not re.match(pattern, code):
             return False
@@ -387,6 +384,8 @@ def upload_file():
         search_values.get_instance().append_to_data_output('scanid')
         if are_codes_in_scanid_format(codes_or_scanids_array,'questionirecode')==False:
             return jsonify({'error': 'No valid questionaire codes provided'})
+        codes_or_scanids_array = [code.strip('[]') for code in codes_or_scanids_array]
+
         if search_values.get_instance().connection:
             wb = Workbook()
             ws = wb.active
@@ -467,6 +466,7 @@ def upload_file():
             rows_to_append = []
             if are_codes_in_scanid_format(codes_or_scanids_array,'scan_id')==False:
                return jsonify({'error': 'No valid scan ids provided'})
+            codes_or_scanids_array = [code.strip('[]') for code in codes_or_scanids_array]
             for code in codes_or_scanids_array:
                 search_values.get_instance().set_selected_scanids([code])
                 results = search_values.get_instance().build_and_execute_query()

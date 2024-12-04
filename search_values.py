@@ -324,8 +324,6 @@ class search_values:
             elif self.query_values['scanid']:
                 patient_condition = f"crf.scanid IN ({', '.join(map(repr, self.query_values['scanid']))})"
                 where_conditions.append(patient_condition)
-        if not where_conditions:
-            return None
 
         where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 

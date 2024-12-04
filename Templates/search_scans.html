@@ -277,21 +277,47 @@
         <input type="hidden" name="all_selected_patient_codes" id="all_selected_patient_codes">
     <fieldset class="row">
             <legend>Subjects Output data</legend>
-            <div style="margin-bottom: 20px;">
-                 <label><input type="checkbox" name="Gender" value="Gender">Gender</label>
-                 <label><input type="checkbox" name="crf.datetimescan" value="crf.scanid">Scan ID</label>
-                 <label><input type="checkbox" name="Ageofscan" value="Ageofscan">Age</label>
-                 <label><input type="checkbox" name="weight" value="weight">Weight(kg)</label>
-                 <label><input type="checkbox" name="height" value="height">Height(m)</label>
-                 <label><input type="checkbox" name="Study" value="Study">Study</label>
-                 <label><input type="checkbox" name="Protocol" value="Protocol">Protocol</label>
-                 <label><input type="checkbox" name="bidspath" value="bidspath">BIDS path</label>
-                 <label><input type="checkbox" name="rawdatapath" value="rawdatapath">raw data path</label>
-                 <label><input type="checkbox" name="Dominant.hand" value="Dominant.hand">Dominant hand</label>
-                 <label><input type="checkbox" name="kepreppath" value="kepreppath">preprocessed path</label>
-                 <label><input type="checkbox" name="kepostpath" value="kepostpath">postprocessed path</label>
-                 <label><input type="checkbox" name="freesurferpath" value="freesurferpath">FreeSurfer path</label>
-            </div>
+<div style="margin-bottom: 20px; display: grid; grid-template-columns: auto auto auto; gap: 10px;">
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="Gender" value="Gender" style="margin-right: 5px;">Gender
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="crf.datetimescan" value="crf.scanid" style="margin-right: 5px;">Scan ID
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="Ageofscan" value="Ageofscan" style="margin-right: 5px;">Age
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="weight" value="weight" style="margin-right: 5px;">Weight(kg)
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="height" value="height" style="margin-right: 5px;">Height(m)
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="Study" value="Study" style="margin-right: 5px;">Study
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="Protocol" value="Protocol" style="margin-right: 5px;">Protocol
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="bidspath" value="bidspath" style="margin-right: 5px;">BIDS path
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="rawdatapath" value="rawdatapath" style="margin-right: 5px;">raw data path
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="Dominant.hand" value="Dominant.hand" style="margin-right: 5px;">Dominant hand
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="kepreppath" value="kepreppath" style="margin-right: 5px;">preprocessed path
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="kepostpath" value="kepostpath" style="margin-right: 5px;">postprocessed path
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" name="freesurferpath" value="freesurferpath" style="margin-right: 5px;">FreeSurfer path
+    </label>
+</div>
            <div style="margin-top: 0px;">
                <button type="button" id="exportButton">Export to Excel</button>
            </div>

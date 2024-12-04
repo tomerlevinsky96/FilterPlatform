@@ -1,9 +1,6 @@
 DB_CONFIG = {
-    "user": 'tomer',
-    "database":'appdb',
-    "port":5432,
-    "host":"localhost",
-    "password":'t1'
+    "user": 'postgres',
+    "database":'appdata',
 }
 
 # Mapping between application and database column names
