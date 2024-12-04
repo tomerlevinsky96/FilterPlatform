@@ -255,11 +255,17 @@ def export():
             'crf.scanid': 'Scan Id',
             'weight': 'weight(kg)',
             'height': 'height(m)',
-            'kepreppath':'keprep path',
-            'kepostpath': 'kepost path',
-            'freesurferpath': 'freesurfer path'
+            'preprocessed path':'kepreppath''preprocessed path',
+            'postprocessed path': 'kepostpath',
+            'freesurfer path': 'freesurferpath'
         }
-        headers = ["Subject Code", "Questionaire Code"] + [replacements.get(col, col) for col in search_values.get_instance().get_data_output()]
+        headers = ["Subject Code", "Questionaire Code"] + [
+            "preprocessed path" if col == "kepreppath" else
+            "postprocessed path" if col == "kepostpath" else
+            "freesurfer path" if col == "freesurferpath" else
+            replacements.get(col, col)
+            for col in search_values.get_instance().get_data_output()
+        ]
         append_and_color_header(ws, headers, "FFFFFF00")
         search_values.get_instance().set_update_subjects('no')
         search_values.get_instance().set_dominant_hand_post('yes')
