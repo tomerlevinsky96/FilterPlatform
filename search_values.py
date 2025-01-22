@@ -14,6 +14,8 @@ class search_values:
     scan_id=None
     path=None
     db_column= None
+    number_of_scans=None
+    additinal_information=None
     def __init__(self):
         # Initialize instance attributes if not already initialized
 
@@ -40,8 +42,8 @@ class search_values:
                 'selected_genders': None, \
                 'kepreppath':None, \
                 'kepostpath':None, \
-                'freesurferpath':None,
-                'scanid':None
+                'freesurferpath':None,\
+                'scanid':None,\
             }
 
     def __new__(cls):
@@ -58,15 +60,33 @@ class search_values:
             return None
 
     # Individual getter and setter methods for each attribute
+
     @classmethod
     def get_instance(cls):
         return cls._instance or cls()
 
+    def set_additinal_information(self, value):
+        self.additinal_information = value
+
+    def get_additinal_information(self, value):
+        return self.additinal_information
+
+
     def get_age_from(self):
         return self.query_values['age_from']
 
+    def set_number_of_scans(self, value):
+        self.query_values['questionaire_category'] = value
+
+    def get_number_of_scans(self, value):
+        return self.query_values['questionaire_category']
 
 
+    def set_number_of_scans(self, value):
+        self.number_of_scans = value
+
+    def get_number_of_scans(self):
+        return self.number_of_scans
 
     def set_age_from(self, value):
         self.query_values['age_from'] = value
@@ -245,6 +265,7 @@ class search_values:
             where_conditions.append(where_protocol_condition)
 
 
+
         # Process selected genders
         if self.query_values['selected_genders']:
             gender_condition = f"gender IN ('{self.query_values['selected_genders']}')"
@@ -274,6 +295,10 @@ class search_values:
             where_conditions.append(f"noscan = '{self.query_values['scan_number']}'")
         if self.Dominant_hand:
             where_conditions.append(f"answer = '{self.Dominant_hand}'")
+
+
+
+
 
         if self.query_values['start_date_of_scan'] and self.query_values['end_date_of_scan'] and self.query_values['start_hour_of_scan'] and self.query_values['end_hour_of_scan']:
             # If all date and time filters are present
@@ -325,34 +350,42 @@ class search_values:
                 patient_condition = f"crf.scanid IN ({', '.join(map(repr, self.query_values['scanid']))})"
                 where_conditions.append(patient_condition)
 
+
+
         where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
+        if self.additinal_information=='yes':
+            where_clause=f"""WHERE crf.guid IN (SELECT guid FROM crf WHERE crf.questionairecode IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))}))"""
+
+
         if self.update_subjects == 'yes':
-            columns = f"""distinct(subjects.questionairecode)"""
+            columns = f"""distinct(crf.questionairecode)"""
             where_clause=where_clause+f" And subjects.questionairecode IS NOT NULL AND subjects.questionairecode <> '' and subjects.questionairecode<>'nan'"
         if self.update_subjects == 'no':
-            columns = ', '.join(column.strip("'") for column in self.Data_output)
+            columns='crf.scanid,crf.guid,crf.questionairecode'
+            columns =columns+','+ ', '.join(column.strip("'") for column in self.Data_output)
+
 
         if self.Dominant_hand or self.Dominant_hand_post != 'no':
             query = f"""
                         SELECT {columns}
                         FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
                         left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                        {where_clause};
+                        {where_clause}
                        """
         elif self.Dominant_hand_post != 'no':
             query = f"""
                                 SELECT {columns}
                                 FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
                                 left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                                {where_clause};
+                                {where_clause}
                                """
         elif include_scans == 'yes':
             query = f"""
                         SELECT {columns}
                         FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode 
                         left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                        {where_clause};
+                        {where_clause}
                     """
 
 
@@ -360,12 +393,18 @@ class search_values:
             query = f"""
                         SELECT {columns}
                         FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode
-                        {where_clause};
+                        {where_clause}
                         """
 
         try:
             cursor = self.connection.cursor()
             full_query = cursor.mogrify(query, params).decode('utf-8')
+            if self.number_of_scans == 'one' and self.update_subjects == 'yes':
+                full_query = full_query + f" group by {columns} having count(scanid)=1"
+
+            if self.number_of_scans == 'more than one' and self.update_subjects == 'yes':
+                full_query = full_query + f" group by {columns} having count(scanid)>1"
+
             print("Full query:", full_query)
             cursor.execute(full_query)
             results = cursor.fetchall()

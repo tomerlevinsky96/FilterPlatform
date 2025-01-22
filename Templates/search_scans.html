@@ -213,7 +213,7 @@
                 </select>
             </label>
             <label>Group
-                <select name="group">
+                <select name="Group">
                     <option value="">Select Group</option>
                     {% for group_name in group_names %}
                         <option value="{{ group_name }}">{{ group_name }}</option>
@@ -228,6 +228,9 @@
                     {% endfor %}
                 </select>
             </label>
+
+
+
             <div class="gender-row">
                 <div class="gender-label">Gender</div>
                 <div class="gender-options">
@@ -244,24 +247,37 @@
                     {% endfor %}
                 </select>
             </label>
+            <label>Number of scans
+                  <select id="number_of_scans" name="number_of_scans">
+                      <option value="">Select number of scans</option>
+                      <option value="one">one</option>
+                      <option value="more than one">more than one</option>
+                  </select>
+            </label>
         </fieldset>
         <fieldset class="row">
             <legend>Available codes under filters</legend>
             <label>
                 Select from
                 <input type="text" id="patient-search" onkeyup="filterPatientCodes()" placeholder="Search for subject ID..">
-                <select name="patientcode[]" multiple style="width: 50%; height: 100px;">
-                    {% for code in patient_codes %}
-                        <option value="{{ code }}">{{ code }}</option>
-                    {% endfor %}
-                </select>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <select name="patientcode[]" multiple style="width: 50%; height: 100px;">
+                        {% for code in patient_codes %}
+                            <option value="{{ code }}">{{ code }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" onclick="selectAllCodes('patientcode[]')"  style="width: 100px; height: 30px;">Select All</button>
+                </div>
             </label>
             <div class="button-container">
                 <button type="button" onclick="addSelectedCodesToDiv()" class="button"> &gt; </button>
                 <button type="button" onclick="deleteSelectedCodes()" class="button"> &lt; </button>
             </div>
             <legend>Codes to export
-                <select id="selected-codes" name="selected_patient_codes" multiple style="width: 100%; height: 100px;"></select>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <select id="selected-codes" name="selected_patient_codes" multiple style="width: 100%; height: 100px;"></select>
+                  <button type="button" onclick="selectAllCodes('selected-codes')"  style="width: 100px; height: 30px;">Select All</button>
+                </div>
             </legend>
             <div style="margin-bottom: 10px; display: flex; gap: 90px;">
               <div>
@@ -280,9 +296,6 @@
 <div style="margin-bottom: 20px; display: grid; grid-template-columns: auto auto auto; gap: 10px;">
     <label style="display: flex; align-items: center;">
         <input type="checkbox" name="Gender" value="Gender" style="margin-right: 5px;">Gender
-    </label>
-    <label style="display: flex; align-items: center;">
-        <input type="checkbox" name="crf.datetimescan" value="crf.scanid" style="margin-right: 5px;">Scan ID
     </label>
     <label style="display: flex; align-items: center;">
         <input type="checkbox" name="Ageofscan" value="Ageofscan" style="margin-right: 5px;">Age
@@ -325,7 +338,16 @@
    </form>
 <script>
 console.log("Script loaded");
+function selectAllCodes(selectId) {
+        const selectElement = selectId === 'patientcode[]'
+            ? document.querySelector('select[name="patientcode[]"]')
+            : document.getElementById(selectId);
 
+        // Select all options in the specified select element
+        Array.from(selectElement.options).forEach(option => {
+            option.selected = true;
+        });
+    }
 function reorderQuestions(selectElement) {
     const options = Array.from(selectElement.options);
     options.sort((a, b) => a.text.localeCompare(b.text));
@@ -486,7 +508,7 @@ function prepareFormSubmission() {
     Array.from(selectedCodes.options).forEach(option => option.selected = true);
 }
 
-function exportToExcel() {
+function exportToCSV() {
     prepareFormSubmission();
     const formData = new FormData(document.querySelector('form'));
     fetch('/export', {
@@ -502,14 +524,14 @@ function exportToExcel() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'Subject details at the time of the scan.xlsx';
+        a.download = 'analysis_results.csv';
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
     })
     .catch(error => {
-        console.error('Error exporting to Excel:', error);
+        console.error('Error exporting to CSV:', error);
         alert('No data found. Please try again.');
     });
 }
@@ -547,13 +569,53 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    document.getElementById('exportButton').addEventListener('click', exportToExcel);
+    document.getElementById('exportButton').addEventListener('click', exportToCSV);
 
     updatePatientCodes();
     updateSubjectCount();
     updateSelectedSubjectCount();
 });
+document.addEventListener('DOMContentLoaded', function() {
+    const studySelect = document.querySelector('select[name="study"]');
+    const groupSelect = document.querySelector('select[name="Group"]');
 
+    if (studySelect && groupSelect) {
+        studySelect.addEventListener('change', function() {
+            const selectedStudy = this.value;
+
+            // Clear current group options
+            groupSelect.innerHTML = '<option value="">Select Group</option>';
+
+            if (selectedStudy) {
+                // Create form data
+                const formData = new FormData();
+                formData.append('study', selectedStudy);
+
+                // Fetch groups for selected study
+                fetch('/get_groups_by_study', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(groups => {
+                    groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group;
+                        option.textContent = group;
+                        groupSelect.appendChild(option);
+                    });
+
+                    // Trigger the change event to update patient codes
+                    groupSelect.dispatchEvent(new Event('change'));
+                })
+                .catch(error => console.error('Error fetching groups:', error));
+            }
+
+            // Trigger the change event to update patient codes
+            groupSelect.dispatchEvent(new Event('change'));
+        });
+    }
+});
 function goBack() {
     window.location.href = '/HomePage';
 }

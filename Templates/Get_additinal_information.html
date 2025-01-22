@@ -236,7 +236,7 @@
                         var blob = new Blob([response], { type: contentType });
                         var link = document.createElement('a');
                         link.href = window.URL.createObjectURL(blob);
-                        link.download = 'results.xlsx';
+                        link.download = 'path_results.csv';
                         link.click();
                         $('#result').html('<p class="success">Excel file generated and downloaded successfully.</p>');
                     } else {

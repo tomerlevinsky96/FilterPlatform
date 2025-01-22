@@ -17,8 +17,18 @@ import datetime
 import re
 from openpyxl.styles import Font, PatternFill
 from search_values import search_values
+from flask import request, abort
+from werkzeug.serving import WSGIRequestHandler
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.serving import WSGIRequestHandler
+from io import StringIO
+import csv
+from flask import Flask
+from typing import List, Dict, Any
+import sys
 app = Flask(__name__, template_folder=os.path.abspath('Templates'))
 app.secret_key = 'your_secret_key'  # Required for flash messaging
+
 s1 = search_values()
 
 # List of all available scan types
@@ -126,7 +136,7 @@ def get_filtered_patient_codes():
     search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
     search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
     search_values.get_instance().set_study(request.form.get('study'))
-    search_values.get_instance().set_group(request.form.get('group'))
+    search_values.get_instance().set_group(request.form.get('Group'))
     search_values.get_instance().set_protocol(request.form.get('protocol'))
     search_values.get_instance().set_scan_number(request.form.get('scan_no'))
     search_values.get_instance().set_selected_genders(request.form.get('gender'))
@@ -137,6 +147,7 @@ def get_filtered_patient_codes():
     search_values.get_instance().set_weight_from(request.form.get('weight_from'))
     search_values.get_instance().set_weight_to(request.form.get('weight_to'))
     search_values.get_instance().set_dominant_hand(request.form.get('Dominant_hand'))
+    search_values.get_instance().set_number_of_scans(request.form.get('number_of_scans'))
 
     # Extract protocol data
     scan_types = {scan_type: request.form.get(scan_type) for scan_type in SCAN_TYPES}
@@ -153,6 +164,31 @@ def get_filtered_patient_codes():
         return jsonify(patient_codes)
     return jsonify([])
 
+
+@app.route('/get_groups_by_study', methods=['POST'])
+def get_groups_by_study():
+    study = request.form.get('study')
+    if not study:
+        return jsonify([])
+
+    connection = connect_to_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            # Query to get distinct groups for the selected study
+            cursor.execute(
+                "SELECT DISTINCT groupname FROM crf WHERE study = %s AND groupname IS NOT NULL AND groupname != 'nan' and groupname != '' and groupname != 'None'",
+                (study,))
+            groups = [row[0] for row in cursor.fetchall() if row[0] is not None]
+            groups.sort()  # Sort alphabetically
+            return jsonify(groups)
+        except Error as e:
+            print(f"Error fetching groups: {e}")
+            return jsonify([])
+        finally:
+            connection.close()
+    return jsonify([])
+
 @app.route('/search_scans', methods=['GET', 'POST'])
 def index():
     if session.get('authenticated'):
@@ -162,9 +198,6 @@ def index():
         cursor.execute("SELECT distinct(questionairecode) FROM crf WHERE questionairecode IS NOT NULL AND questionairecode <> '' and questionairecode<>'nan'")
         patient_codes = [row[0] for row in cursor.fetchall() if row[0] is not None]
         patient_codes.sort()  # Sort patient codes alphabetically        # Sort patient codes alphabetically
-        cursor.execute("SELECT DISTINCT groupname FROM crf where groupname <>'NULL' and groupname<>''")
-        group_names = [row[0] for row in cursor.fetchall() if row[0] is not None]
-        group_names.sort()  # Sort patient codes alphabetically
         cursor.execute("SELECT DISTINCT Protocol FROM crf where Protocol <>'NULL' and Protocol<>'nan'")
         Protocols = [row[0] for row in cursor.fetchall() if row[0] is not None]
         Protocols.sort()  #
@@ -185,120 +218,149 @@ def index():
         music_questions = [row[1] for row in cursor.fetchall() if row[0] is not None]
         all_questions =custom_questions + education_work_questions + music_questions
         connection.close()
-      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,group_names=group_names,studies=studies,protocols=Protocols,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
+      return render_template('search_scans.html', scan_types=SCAN_TYPES, patient_codes=patient_codes,studies=studies,protocols=Protocols,scan_numbers=scan_numbers,Dominant_hand=Dominant_hand)
     else:
         return render_template('loginPage.html')
 
-
+def flatten_and_clean_values(result):
+    """Flattens and cleans values in a single pass"""
+    flattened = []
+    for value in result:
+        if isinstance(value, (list, tuple)):
+            flattened.extend(clean_value(item) for item in value)
+        else:
+            flattened.append(clean_value(value))
+    return flattened
 
 @app.route('/export', methods=['POST'])
 def export():
-    search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
-    cursor = search_values.get_instance().connection.cursor()
-    file = request.files.get('file')
-    selected_types = {}
-    search_values.get_instance().Data_output = []
-    # Populate selected_types dictionary
-    for scan_type in SCAN_TYPES:
-        values = request.form.getlist(scan_type)
-        selected_types[scan_type] = values[0] if values else ''
+    while(1):
+      try:
+          search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
+          cursor = search_values.get_instance().connection.cursor()
+          file = request.files.get('file')
+          selected_types = {}
+          search_values.get_instance().Data_output = []
+          # Populate selected_types dictionary
+          for scan_type in SCAN_TYPES:
+              values = request.form.getlist(scan_type)
+              selected_types[scan_type] = values[0] if values else ''
 
-    selected_genders = request.form.getlist('gender')[0] if request.form.getlist('gender') else ''
+          selected_genders = request.form.getlist('gender')[0] if request.form.getlist('gender') else ''
 
-    # Set Singleton attributes
+          # Set Singleton attributes
 
-    search_values.get_instance().set_selected_types(selected_types)
-    search_values.get_instance().set_dominant_hand_post(request.form.getlist('Dominant.hand'))
-    if search_values.get_instance().get_dominant_hand_post():
-        search_values.get_instance().append_to_data_output('answers.answer')
-    search_values.get_instance().set_age_from(request.form.get('age_from'))
-    search_values.get_instance().set_age_to(request.form.get('age_to'))
-    search_values.get_instance().set_start_date_of_scan(request.form.get('start_date_of_scan'))
-    search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
-    search_values.get_instance().set_end_date_of_scan(request.form.get('end_date_of_scan'))
-    search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
-    search_values.get_instance().set_weight_from(request.form.get('weight_from'))
-    search_values.get_instance().set_weight_to(request.form.get('weight_to'))
-    search_values.get_instance().set_height_from(request.form.get('height_from'))
-    search_values.get_instance().set_height_to(request.form.get('height_to'))
-    search_values.get_instance().set_study(request.form.get('study'))
-    search_values.get_instance().set_group(request.form.get('group'))
-    search_values.get_instance().set_protocol(request.form.get('protocol'))
-    search_values.get_instance().set_scan_number(request.form.get('scan_no'))
-    search_values.get_instance().set_kepreppath(request.form.get('kepreppath'))
-    search_values.get_instance().set_kepostpath(request.form.get('kepostpath'))
-    search_values.get_instance().set_freesurferpath(request.form.get('freesurferpath'))
-    selected_patient_codes=request.form.getlist('selected_patient_codes')
-    search_values.get_instance().set_dominant_hand(
-        request.form.getlist('Dominant_hand')[0] if request.form.getlist('Dominant_hand') else ''
-    )
+          search_values.get_instance().set_selected_types(selected_types)
+          search_values.get_instance().set_dominant_hand_post(request.form.getlist('Dominant.hand'))
+          if search_values.get_instance().get_dominant_hand_post():
+              search_values.get_instance().append_to_data_output('answers.answer')
+          search_values.get_instance().set_age_from(request.form.get('age_from'))
+          search_values.get_instance().set_age_to(request.form.get('age_to'))
+          search_values.get_instance().set_start_date_of_scan(request.form.get('start_date_of_scan'))
+          search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
+          search_values.get_instance().set_end_date_of_scan(request.form.get('end_date_of_scan'))
+          search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
+          search_values.get_instance().set_weight_from(request.form.get('weight_from'))
+          search_values.get_instance().set_weight_to(request.form.get('weight_to'))
+          search_values.get_instance().set_height_from(request.form.get('height_from'))
+          search_values.get_instance().set_height_to(request.form.get('height_to'))
+          search_values.get_instance().set_study(request.form.get('study'))
+          search_values.get_instance().set_group(request.form.get('group'))
+          search_values.get_instance().set_protocol(request.form.get('protocol'))
+          search_values.get_instance().set_scan_number(request.form.get('scan_no'))
+          search_values.get_instance().set_kepreppath(request.form.get('kepreppath'))
+          search_values.get_instance().set_kepostpath(request.form.get('kepostpath'))
+          search_values.get_instance().set_freesurferpath(request.form.get('freesurferpath'))
+          #selected_patient_codes = request.form.getlist('selected_patient_codes')
+          search_values.get_instance().set_dominant_hand(
+              request.form.getlist('Dominant_hand')[0] if request.form.getlist('Dominant_hand') else ''
+          )
 
-    # Define the fields and process Data_output
-    fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol', 'Group',
-              'bidspath', 'resultspath', 'rawdatapath', 'Dominant.hand','kepreppath','kepostpath','freesurferpath']
-    for field in fields:
-        value = request.form.get(field)
-        if value and value not in ['None']:
-            search_values.get_instance().append_to_data_output(value)
+          # Define the fields and process Data_output
+          fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol', 'group',
+                    'bidspath', 'resultspath', 'rawdatapath', 'Dominant.hand', 'kepreppath', 'kepostpath',
+                    'freesurferpath']
+          for field in fields:
+              value = request.form.get(field)
+              if value and value not in ['None']:
+                  search_values.get_instance().append_to_data_output(value)
+
+          # Database query and Excel export
+          if search_values.get_instance().connection:
+              wb = Workbook()
+              ws = wb.active
+              ws.title = "Subject details at the time of the scan"
+
+              # Headers setup
+              replacements = {
+                  'answers.answer': 'dominant_hand',
+                  'crf.scanid': 'scan_id',
+                  'weight': 'weight(kg)',
+                  'height': 'height(m)',
+                  'preprocessedpath': 'keprep_path',
+                  'postprocessedpath': 'kepost_path',
+                  'freesurferpath': 'freesurfer_path',
+                  'rawdatapath':'rawdata_path',
+                  'bidspath':'bids_path',
+                  'Ageofscan':'age_of_scan',
+                  'Study':'study',
+                  'Protocol':'protocol',
+                  'Gender':'gender'
+              }
+              headers = ["scan_id","subject_code", "questionaire_code"] + [
+                  "preprocessed path" if col == "kepreppath" else
+                  "postprocessed path" if col == "kepostpath" else
+                  "freesurfer path" if col == "freesurferpath" else
+
+                  replacements.get(col, col)
+                  for col in search_values.get_instance().get_data_output()
+              ]
+              append_and_color_header(ws, headers, "FFFFFF00")
+
+              search_values.get_instance().set_update_subjects('no')
+              search_values.get_instance().set_dominant_hand_post('yes')
+
+              # Query and populate data rows
+              patient_codes = json.loads(request.form.get('all_selected_patient_codes'))
+              if len(patient_codes)==0 or len(search_values.get_instance().Data_output)==0:
+                  break
+              placeholders = ','.join(['%s'] * len(patient_codes))
+              # Batch fetch all subject GUIDs
+              query = f"SELECT scanid,guid,questionairecode FROM crf WHERE questionairecode IN ({placeholders})"
+              cursor.execute(query, patient_codes)
+              search_values.get_instance().set_selected_patient_codes(patient_codes)
+              all_results = search_values.get_instance().build_and_execute_query()
+              # Process results more efficiently
+              rows_to_append = []
+              for results in all_results:
+                   rows_to_append.append(list(results))
+
+              # Sort once at the end
+              rows_to_append.sort(key=lambda x: x[1])
+              size_in_bytes = sys.getsizeof(all_results)
+              # Write rows to Excel using standard append method
+              for row in rows_to_append:
+                  ws.append(row)  # Using the standard append method instead of append_rows
+
+              # Create and return Excel file
+              excel_file = BytesIO()
+              wb.save(excel_file)
+              excel_file.seek(0)
+
+              return send_file(
+                  excel_file,
+                  mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  as_attachment=True,
+                  download_name='analysis_results.csv'
+              )
+              break
+          return Response("No data found or an error occurred", status=400)
+
+      except Exception as e:
+        app.logger.error(f"Error processing export: {str(e)}")
+        continue
 
 
-
-    # Database query and Excel export
-    if search_values.get_instance().connection and selected_patient_codes:
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Subject details at the time of the scan"
-
-        # Headers setup
-        replacements = {
-            'answers.answer': 'Dominant hand',
-            'crf.scanid': 'Scan Id',
-            'weight': 'weight(kg)',
-            'height': 'height(m)',
-            'preprocessed path':'kepreppath''preprocessed path',
-            'postprocessed path': 'kepostpath',
-            'freesurfer path': 'freesurferpath'
-        }
-        headers = ["Subject Code", "Questionaire Code"] + [
-            "preprocessed path" if col == "kepreppath" else
-            "postprocessed path" if col == "kepostpath" else
-            "freesurfer path" if col == "freesurferpath" else
-            replacements.get(col, col)
-            for col in search_values.get_instance().get_data_output()
-        ]
-        append_and_color_header(ws, headers, "FFFFFF00")
-        search_values.get_instance().set_update_subjects('no')
-        search_values.get_instance().set_dominant_hand_post('yes')
-        # Query and populate data rows
-        rows_to_append = []
-        for code in selected_patient_codes:
-            search_values.get_instance().set_selected_patient_codes([code])
-            results = search_values.get_instance().build_and_execute_query()
-            if results:
-                for result in results:
-                    cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
-                    query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
-                    cursor.execute(query)
-                    subjects_code = cursor.fetchone()
-                    if subjects_code:
-                        rows_to_append.append([subjects_code[0], code] + cleaned_result)
-
-        rows_to_append.sort(key=lambda x: x[0])
-        for row in rows_to_append:
-            ws.append(row)
-
-        # Create an Excel file in memory
-        excel_file = BytesIO()
-        wb.save(excel_file)
-        excel_file.seek(0)
-        return send_file(
-            excel_file,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name='results.xlsx'
-        )
-
-    return Response("No data found or an error occurred", status=400)
 
 ########## filter1
 # @app.route('/', methods=['GET', 'POST'])
@@ -323,7 +385,7 @@ def are_codes_in_scanid_format(codes,scan_id_or_code):
     if scan_id_or_code=='scan_id':
        pattern = r'^\[?\d{8}_\d{4}\]?$'
     elif scan_id_or_code=='questionirecode':
-       pattern = r'^\[?[^\s_]*\]?$'
+       pattern = r'^\[?[^\s]*\]?$'
     for code in codes:
         if not re.match(pattern, code):
             return False
@@ -403,35 +465,30 @@ def upload_file():
                 'crf.datetimescan': 'date time of scan',
                 'weight': 'weight(kg)',
                 'height': 'height(m)',
-                'kepreppath': 'keprep path',
-                'kepostpath': 'kepost path',
-                'freesurferpath': 'freesurfer path'
+                'rawdatapath': 'rawdata_path',
+                'kepreppath':'keprep_path',
+                'kepostpath':'kepost_path',
+                'bidspath':'bids_path',
+                'freesurferpath': 'freesurfer_path'
             }
-            headers = ["Subject Code", "Questionaire Code"] + [replacements.get(col, col) for col in
+            headers = ["scan_ids","gui","questionairecode_code"] + [replacements.get(col, col) for col in
                                                                search_values.get_instance().get_data_output()]
+            headers.pop()
             append_and_color_header(ws, headers, "FFFFFF00")
             search_values.get_instance().set_update_subjects('no')
             search_values.get_instance().set_dominant_hand_post('yes')
             # Query and populate data rows
             rows_to_append = []
-            for code in codes_or_scanids_array:
-                search_values.get_instance().set_selected_patient_codes([code])
-                results = search_values.get_instance().build_and_execute_query()
-                if results:
-                   for result in results:
-                        cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
-                        query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
-                        cursor.execute(query)
-                        subjects_code = cursor.fetchone()
-                        if subjects_code:
-                            rows_to_append.append([subjects_code[0], code] + cleaned_result)
-                else:
-                    query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
-                    cursor.execute(query)
-                    subjects_code = cursor.fetchone()
-                    if subjects_code:
-                        rows_to_append.append([subjects_code[0], code] + ['no data found'])
+            search_values.get_instance().set_additinal_information('yes')
+            search_values.get_instance().set_selected_patient_codes(codes_or_scanids_array)
+            results = search_values.get_instance().build_and_execute_query()
+            if results:
+               for result in results:
+                   cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                   rows_to_append.append(cleaned_result)
             rows_to_append.sort(key=lambda x: x[0])
+            for row in rows_to_append:
+                row.pop()
             for row in rows_to_append:
                 ws.append(row)
 
@@ -439,11 +496,12 @@ def upload_file():
             excel_file = BytesIO()
             wb.save(excel_file)
             excel_file.seek(0)
+            search_values.get_instance().set_additinal_information('no')
             return send_file(
                 excel_file,
                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 as_attachment=True,
-                download_name='results.xlsx'
+                download_name='path_results.csv'
             )
 
         return Response("No data found or an error occurred", status=400)
@@ -463,7 +521,7 @@ def upload_file():
                 'kepostpath': 'kepost path',
                 'freesurferpath': 'freesurfer path'
             }
-            headers = ["Scan Ids"] + [replacements.get(col, col) for col in
+            headers = ["scan_ids"]+["guid"]+["questionaire_code"]+ [replacements.get(col, col) for col in
                                                                search_values.get_instance().get_data_output()]
             append_and_color_header(ws, headers, "FFFFFF00")
             search_values.get_instance().set_update_subjects('no')
@@ -473,20 +531,13 @@ def upload_file():
             if are_codes_in_scanid_format(codes_or_scanids_array,'scan_id')==False:
                return jsonify({'error': 'No valid scan ids provided'})
             codes_or_scanids_array = [code.strip('[]') for code in codes_or_scanids_array]
-            for code in codes_or_scanids_array:
-                search_values.get_instance().set_selected_scanids([code])
-                results = search_values.get_instance().build_and_execute_query()
-                if results:
-                    for result in results:
-                        cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
-                        rows_to_append.append([code] + cleaned_result)
-                else:
-                    query = f"SELECT guid FROM subjects WHERE questionairecode='{code}'"
-                    cursor.execute(query)
-                    subjects_code = cursor.fetchone()
-                    if subjects_code:
-                        rows_to_append.append([subjects_code[0], code] + ['no data found'])
+            search_values.get_instance().set_selected_scanids(codes_or_scanids_array)
 
+            results = search_values.get_instance().build_and_execute_query()
+            if results:
+               for result in results:
+                cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+                rows_to_append.append(cleaned_result)
             rows_to_append.sort(key=lambda x: x[0])
             for row in rows_to_append:
                 ws.append(row)
@@ -597,7 +648,7 @@ def index2():
 def login():
 
     password = request.form['password']
-    if password == "asgard2014":  # Example check
+    if password == "Bvn1123@":  # Example check
         session['authenticated'] = True
         return redirect(url_for('OptionPage'))
     else:
