@@ -371,21 +371,21 @@ class search_values:
                         SELECT {columns}
                         FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
                         left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                        {where_clause}
+                        {where_clause} Group by {columns}
                        """
         elif self.Dominant_hand_post != 'no':
             query = f"""
                                 SELECT {columns}
                                 FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
                                 left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                                {where_clause}
+                                {where_clause} Group by {columns}
                                """
         elif include_scans == 'yes':
             query = f"""
                         SELECT {columns}
                         FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode 
                         left JOIN scans ON crf.datetimescan = scans.datetimescan 
-                        {where_clause}
+                        {where_clause} Group by {columns}
                     """
 
 
@@ -393,17 +393,17 @@ class search_values:
             query = f"""
                         SELECT {columns}
                         FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode
-                        {where_clause}
+                        {where_clause} Group by {columns}
                         """
 
         try:
             cursor = self.connection.cursor()
             full_query = cursor.mogrify(query, params).decode('utf-8')
             if self.number_of_scans == 'one' and self.update_subjects == 'yes':
-                full_query = full_query + f" group by {columns} having count(scanid)=1"
+                full_query = full_query + f" having count(scanid)=1"
 
             if self.number_of_scans == 'more than one' and self.update_subjects == 'yes':
-                full_query = full_query + f" group by {columns} having count(scanid)>1"
+                full_query = full_query + f" having count(scanid)>1"
 
             print("Full query:", full_query)
             cursor.execute(full_query)

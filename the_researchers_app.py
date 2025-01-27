@@ -164,7 +164,6 @@ def get_filtered_patient_codes():
         return jsonify(patient_codes)
     return jsonify([])
 
-
 @app.route('/get_groups_by_study', methods=['POST'])
 def get_groups_by_study():
     study = request.form.get('study')
@@ -440,11 +439,11 @@ def upload_file():
     if not conn:
         return jsonify({'error': 'Unable to connect to the database'})
     search_values.get_instance().Data_output = []
-    search_values.get_instance().append_to_data_output('bidspath')
-    search_values.get_instance().append_to_data_output('rawdatapath')
-    search_values.get_instance().append_to_data_output('kepreppath')
-    search_values.get_instance().append_to_data_output('kepostpath')
-    search_values.get_instance().append_to_data_output('freesurferpath')
+    search_values.get_instance().append_to_data_output('scans.bidspath')
+    search_values.get_instance().append_to_data_output('scans.rawdatapath')
+    search_values.get_instance().append_to_data_output('scans.kepreppath')
+    search_values.get_instance().append_to_data_output('scans.kepostpath')
+    search_values.get_instance().append_to_data_output('scans.freesurferpath')
     search_values.get_instance().set_update_subjects('no')
     search_values.get_instance().set_dominant_hand_post('yes')
     cursor = search_values.get_instance().connection.cursor()
@@ -486,6 +485,9 @@ def upload_file():
                for result in results:
                    cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
                    rows_to_append.append(cleaned_result)
+            else:
+                return Response("No data found or an error occurred", status=400)
+
             rows_to_append.sort(key=lambda x: x[0])
             for row in rows_to_append:
                 row.pop()
@@ -538,6 +540,8 @@ def upload_file():
                for result in results:
                 cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
                 rows_to_append.append(cleaned_result)
+            else:
+                return Response("No data found or an error occurred", status=400)
             rows_to_append.sort(key=lambda x: x[0])
             for row in rows_to_append:
                 ws.append(row)
