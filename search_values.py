@@ -344,7 +344,7 @@ class search_values:
         # Process selected patient codes
         if self.update_subjects == 'no':
             if self.query_values['selected_patient_codes']:
-                patient_condition = f"subjects.questionairecode IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))})"
+                patient_condition = f"crf.scanid IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))})"
                 where_conditions.append(patient_condition)
             elif self.query_values['scanid']:
                 patient_condition = f"crf.scanid IN ({', '.join(map(repr, self.query_values['scanid']))})"
@@ -355,14 +355,14 @@ class search_values:
         where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
         if self.additinal_information=='yes':
-            where_clause=f"""WHERE crf.guid IN (SELECT guid FROM crf WHERE crf.questionairecode IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))}))"""
+            where_clause=f"""WHERE crf.guid IN (SELECT guid FROM crf WHERE crf.scanid IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))}))"""
 
 
         if self.update_subjects == 'yes':
-            columns = f"""distinct(crf.questionairecode)"""
-            where_clause=where_clause+f" And subjects.questionairecode IS NOT NULL AND subjects.questionairecode <> '' and subjects.questionairecode<>'nan'"
+            columns = f"""distinct(crf.scanid)"""
+            #where_clause=where_clause+f" And subjects.questionairecode IS NOT NULL AND subjects.questionairecode <> '' and subjects.questionairecode<>'nan'"
         if self.update_subjects == 'no':
-            columns='crf.scanid,crf.guid,crf.questionairecode'
+            columns='crf.scanid,crf.guid'
             columns =columns+','+ ', '.join(column.strip("'") for column in self.Data_output)
 
 
@@ -376,14 +376,14 @@ class search_values:
         elif self.Dominant_hand_post != 'no':
             query = f"""
                                 SELECT {columns}
-                                FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
+                                FROM subjects inner join crf on subjects.guid=crf.guid left join answers on subjects.questionairecode=answers.questionairecode AND answers.questioneid = '4'
                                 left JOIN scans ON crf.datetimescan = scans.datetimescan 
                                 {where_clause} Group by {columns}
                                """
         elif include_scans == 'yes':
             query = f"""
                         SELECT {columns}
-                        FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode 
+                        FROM subjects inner join crf on subjects.guid=crf.guid 
                         left JOIN scans ON crf.datetimescan = scans.datetimescan 
                         {where_clause} Group by {columns}
                     """
@@ -392,7 +392,7 @@ class search_values:
         else:
             query = f"""
                         SELECT {columns}
-                        FROM subjects inner join crf on subjects.questionairecode=crf.questionairecode
+                        FROM subjects inner join crf on subjects.guid=crf.guid
                         {where_clause} Group by {columns}
                         """
 

@@ -306,7 +306,7 @@ def export():
                   'Protocol':'protocol',
                   'Gender':'gender'
               }
-              headers = ["scan_id","subject_code", "questionaire_code"] + [
+              headers = ["scan_id","subject_code"] + [
                   "preprocessed path" if col == "kepreppath" else
                   "postprocessed path" if col == "kepostpath" else
                   "freesurfer path" if col == "freesurferpath" else
@@ -323,10 +323,6 @@ def export():
               patient_codes = json.loads(request.form.get('all_selected_patient_codes'))
               if len(patient_codes)==0 or len(search_values.get_instance().Data_output)==0:
                   break
-              placeholders = ','.join(['%s'] * len(patient_codes))
-              # Batch fetch all subject GUIDs
-              query = f"SELECT scanid,guid,questionairecode FROM crf WHERE questionairecode IN ({placeholders})"
-              cursor.execute(query, patient_codes)
               search_values.get_instance().set_selected_patient_codes(patient_codes)
               all_results = search_values.get_instance().build_and_execute_query()
               # Process results more efficiently
