@@ -200,7 +200,7 @@ def index():
         cursor.execute("SELECT DISTINCT Protocol FROM crf where Protocol <>'NULL' and Protocol<>'nan'")
         Protocols = [row[0] for row in cursor.fetchall() if row[0] is not None]
         Protocols.sort()  #
-        cursor.execute("SELECT DISTINCT study FROM crf where study <>'NULL' and study<>'nan'")
+        cursor.execute("SELECT DISTINCT study FROM crf where study <>'NULL' and study<>'nan' and study<>''")
         studies = [row[0] for row in cursor.fetchall() if row[0] is not None]
         studies.sort()
         cursor.execute("SELECT DISTINCT FLOOR(CAST(noscan AS NUMERIC))::INT AS noscan_int FROM crf WHERE noscan NOT IN ('NULL', 'nan');")
@@ -233,64 +233,59 @@ def flatten_and_clean_values(result):
 
 @app.route('/export', methods=['POST'])
 def export():
-    while(1):
-      try:
-          search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
-          cursor = search_values.get_instance().connection.cursor()
-          file = request.files.get('file')
-          selected_types = {}
-          search_values.get_instance().Data_output = []
-          # Populate selected_types dictionary
-          for scan_type in SCAN_TYPES:
-              values = request.form.getlist(scan_type)
-              selected_types[scan_type] = values[0] if values else ''
+       while(1):
+          try:
+              search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
+              cursor = search_values.get_instance().connection.cursor()
+              selected_types = {}
+              search_values.get_instance().Data_output = []
 
-          selected_genders = request.form.getlist('gender')[0] if request.form.getlist('gender') else ''
+              # Populate selected_types dictionary
+              for scan_type in SCAN_TYPES:
+                  values = request.form.getlist(scan_type)
+                  selected_types[scan_type] = values[0] if values else ''
 
-          # Set Singleton attributes
+              selected_genders = request.form.getlist('gender')[0] if request.form.getlist('gender') else ''
 
-          search_values.get_instance().set_selected_types(selected_types)
-          search_values.get_instance().set_dominant_hand_post(request.form.getlist('Dominant.hand'))
-          if search_values.get_instance().get_dominant_hand_post():
-              search_values.get_instance().append_to_data_output('answers.answer')
-          search_values.get_instance().set_age_from(request.form.get('age_from'))
-          search_values.get_instance().set_age_to(request.form.get('age_to'))
-          search_values.get_instance().set_start_date_of_scan(request.form.get('start_date_of_scan'))
-          search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
-          search_values.get_instance().set_end_date_of_scan(request.form.get('end_date_of_scan'))
-          search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
-          search_values.get_instance().set_weight_from(request.form.get('weight_from'))
-          search_values.get_instance().set_weight_to(request.form.get('weight_to'))
-          search_values.get_instance().set_height_from(request.form.get('height_from'))
-          search_values.get_instance().set_height_to(request.form.get('height_to'))
-          search_values.get_instance().set_study(request.form.get('study'))
-          search_values.get_instance().set_group(request.form.get('group'))
-          search_values.get_instance().set_protocol(request.form.get('protocol'))
-          search_values.get_instance().set_scan_number(request.form.get('scan_no'))
-          search_values.get_instance().set_kepreppath(request.form.get('kepreppath'))
-          search_values.get_instance().set_kepostpath(request.form.get('kepostpath'))
-          search_values.get_instance().set_freesurferpath(request.form.get('freesurferpath'))
-          #selected_patient_codes = request.form.getlist('selected_patient_codes')
-          search_values.get_instance().set_dominant_hand(
-              request.form.getlist('Dominant_hand')[0] if request.form.getlist('Dominant_hand') else ''
-          )
+              # Set Singleton attributes
+              search_values.get_instance().set_selected_types(selected_types)
+              search_values.get_instance().set_dominant_hand_post(request.form.getlist('Dominant.hand'))
+              if search_values.get_instance().get_dominant_hand_post():
+                  search_values.get_instance().append_to_data_output('answers.answer')
 
-          # Define the fields and process Data_output
-          fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol', 'group',
-                    'bidspath', 'resultspath', 'rawdatapath', 'Dominant.hand', 'kepreppath', 'kepostpath',
-                    'freesurferpath']
-          for field in fields:
-              value = request.form.get(field)
-              if value and value not in ['None']:
-                  search_values.get_instance().append_to_data_output(value)
+              # Set all the filter parameters
+              search_values.get_instance().set_age_from(request.form.get('age_from'))
+              search_values.get_instance().set_age_to(request.form.get('age_to'))
+              search_values.get_instance().set_start_date_of_scan(request.form.get('start_date_of_scan'))
+              search_values.get_instance().set_start_hour_of_scan(request.form.get('start_hour_of_scan'))
+              search_values.get_instance().set_end_date_of_scan(request.form.get('end_date_of_scan'))
+              search_values.get_instance().set_end_hour_of_scan(request.form.get('end_hour_of_scan'))
+              search_values.get_instance().set_weight_from(request.form.get('weight_from'))
+              search_values.get_instance().set_weight_to(request.form.get('weight_to'))
+              search_values.get_instance().set_height_from(request.form.get('height_from'))
+              search_values.get_instance().set_height_to(request.form.get('height_to'))
+              search_values.get_instance().set_study(request.form.get('study'))
+              search_values.get_instance().set_group(request.form.get('group'))
+              search_values.get_instance().set_protocol(request.form.get('protocol'))
+              search_values.get_instance().set_scan_number(request.form.get('scan_no'))
+              search_values.get_instance().set_kepreppath(request.form.get('kepreppath'))
+              search_values.get_instance().set_kepostpath(request.form.get('kepostpath'))
+              search_values.get_instance().set_freesurferpath(request.form.get('freesurferpath'))
 
-          # Database query and Excel export
-          if search_values.get_instance().connection:
-              wb = Workbook()
-              ws = wb.active
-              ws.title = "Subject details at the time of the scan"
+              search_values.get_instance().set_dominant_hand(
+                  request.form.getlist('Dominant_hand')[0] if request.form.getlist('Dominant_hand') else ''
+              )
 
-              # Headers setup
+              # Define the fields and process Data_output
+              fields = ['Gender', 'crf.datetimescan', 'Ageofscan', 'weight', 'height', 'Study', 'Protocol', 'group',
+                        'bidspath', 'resultspath', 'rawdatapath', 'Dominant.hand', 'kepreppath', 'kepostpath',
+                        'freesurferpath']
+              for field in fields:
+                  value = request.form.get(field)
+                  if value and value not in ['None']:
+                      search_values.get_instance().append_to_data_output(value)
+
+              # Column name mapping for better readability
               replacements = {
                   'answers.answer': 'dominant_hand',
                   'crf.scanid': 'scan_id',
@@ -299,62 +294,59 @@ def export():
                   'preprocessedpath': 'keprep_path',
                   'postprocessedpath': 'kepost_path',
                   'freesurferpath': 'freesurfer_path',
-                  'rawdatapath':'rawdata_path',
-                  'bidspath':'bids_path',
-                  'Ageofscan':'age_of_scan',
-                  'Study':'study',
-                  'Protocol':'protocol',
-                  'Gender':'gender'
+                  'rawdatapath': 'rawdata_path',
+                  'bidspath': 'bids_path',
+                  'Ageofscan': 'age_of_scan',
+                  'Study': 'study',
+                  'Protocol': 'protocol',
+                  'Gender': 'gender'
               }
-              headers = ["scan_id","subject_code"] + [
+
+              column_names = ["scan_id", "subject_code"] + [
                   "preprocessed path" if col == "kepreppath" else
                   "postprocessed path" if col == "kepostpath" else
                   "freesurfer path" if col == "freesurferpath" else
-
                   replacements.get(col, col)
                   for col in search_values.get_instance().get_data_output()
               ]
-              append_and_color_header(ws, headers, "FFFFFF00")
 
               search_values.get_instance().set_update_subjects('no')
               search_values.get_instance().set_dominant_hand_post('yes')
 
-              # Query and populate data rows
+              # Get selected patient codes from the form
               patient_codes = json.loads(request.form.get('all_selected_patient_codes'))
-              if len(patient_codes)==0 or len(search_values.get_instance().Data_output)==0:
-                  break
+              if len(patient_codes) == 0 or len(search_values.get_instance().Data_output) == 0:
+                  return Response("No data found or selection is empty", status=400)
+
+              # Setup for query
               search_values.get_instance().set_selected_patient_codes(patient_codes)
               all_results = search_values.get_instance().build_and_execute_query()
-              # Process results more efficiently
-              rows_to_append = []
-              for results in all_results:
-                   rows_to_append.append(list(results))
 
-              # Sort once at the end
-              rows_to_append.sort(key=lambda x: x[1])
-              size_in_bytes = sys.getsizeof(all_results)
-              # Write rows to Excel using standard append method
-              for row in rows_to_append:
-                  ws.append(row)  # Using the standard append method instead of append_rows
+              # If no results were found
+              if not all_results:
+                  return Response("No data found or an error occurred", status=400)
 
-              # Create and return Excel file
-              excel_file = BytesIO()
-              wb.save(excel_file)
-              excel_file.seek(0)
+              # Create DataFrame from results
+              df = pd.DataFrame(all_results, columns=column_names)
+
+              # Sort the DataFrame by subject code
+              df.sort_values(by='subject_code', inplace=True)
+
+              # Export to CSV (in-memory using BytesIO)
+              csv_buffer = BytesIO()
+              df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
+              csv_buffer.seek(0)
 
               return send_file(
-                  excel_file,
-                  mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  csv_buffer,
+                  mimetype='text/csv',
                   as_attachment=True,
                   download_name='analysis_results.csv'
               )
-              break
-          return Response("No data found or an error occurred", status=400)
 
-      except Exception as e:
-        app.logger.error(f"Error processing export: {str(e)}")
-        continue
-
+          except Exception as e:
+              app.logger.error(f"Error processing export: {str(e)}")
+              continue
 
 
 ########## filter1
@@ -393,11 +385,14 @@ def are_codes_in_scanid_format(codes,scan_id_or_code):
 def upload_file():
     if 'file' not in request.files and 'additionalDetails' not in request.form and 'selectedQuestions' not in request.form:
         return jsonify({'error': 'No file, data, or selected questions provided'})
+
     detail_type = request.form.get('detailType')
     search_values.get_instance().set_connection(search_values.get_instance().connect_to_db())
     file = request.files.get('file')
     data_text = request.form.get('additionalDetails')
     codes_or_scanids_array = []
+
+    # File processing logic
     if file and file.filename:
         try:
             file_content = file.read()
@@ -418,14 +413,12 @@ def upload_file():
                    (isinstance(code, (int, float)) and not pd.isna(code) and pattern.match(str(code)))
             ]
             if 'Uploaded' in codes_or_scanids_array:
-                codes_or_scanids_array=codes_or_scanids_array[:-3]
-
-
+                codes_or_scanids_array = codes_or_scanids_array[:-3]
 
         except Exception as e:
             return jsonify({'error': str(e)})
 
-    elif data_text and len(codes_or_scanids_array)==0:
+    elif data_text and len(codes_or_scanids_array) == 0:
         codes_or_scanids_array.extend(data_text.split())
 
     elif not codes_or_scanids_array:
@@ -434,6 +427,8 @@ def upload_file():
     conn = connect_to_db()
     if not conn:
         return jsonify({'error': 'Unable to connect to the database'})
+
+    # Set up data output fields
     search_values.get_instance().Data_output = []
     search_values.get_instance().append_to_data_output('scans.bidspath')
     search_values.get_instance().append_to_data_output('scans.rawdatapath')
@@ -442,118 +437,122 @@ def upload_file():
     search_values.get_instance().append_to_data_output('scans.freesurferpath')
     search_values.get_instance().set_update_subjects('no')
     search_values.get_instance().set_dominant_hand_post('yes')
-    cursor = search_values.get_instance().connection.cursor()
+
+    # Process based on detail type
     if detail_type == 'QuestionaireCode':
         search_values.get_instance().append_to_data_output('scanid')
-        if are_codes_in_scanid_format(codes_or_scanids_array,'questionirecode')==False:
+        if not are_codes_in_scanid_format(codes_or_scanids_array, 'questionirecode'):
             return jsonify({'error': 'No valid questionaire codes provided'})
+
         codes_or_scanids_array = [code.strip('[]') for code in codes_or_scanids_array]
 
-        if search_values.get_instance().connection:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Subject details at the time of the scan"
+        if not search_values.get_instance().connection:
+            return Response("Database connection error", status=500)
 
-            # Headers setup
-            replacements = {
-                'answers.answer': 'Dominant hand',
-                'crf.datetimescan': 'date time of scan',
-                'weight': 'weight(kg)',
-                'height': 'height(m)',
-                'rawdatapath': 'rawdata_path',
-                'kepreppath':'keprep_path',
-                'kepostpath':'kepost_path',
-                'bidspath':'bids_path',
-                'freesurferpath': 'freesurfer_path'
-            }
-            headers = ["scan_ids","gui","questionairecode_code"] + [replacements.get(col, col) for col in
-                                                               search_values.get_instance().get_data_output()]
-            headers.pop()
-            append_and_color_header(ws, headers, "FFFFFF00")
-            search_values.get_instance().set_update_subjects('no')
-            search_values.get_instance().set_dominant_hand_post('yes')
-            # Query and populate data rows
-            rows_to_append = []
-            search_values.get_instance().set_additinal_information('yes')
-            search_values.get_instance().set_selected_patient_codes(codes_or_scanids_array)
-            results = search_values.get_instance().build_and_execute_query()
-            if results:
-               for result in results:
-                   cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
-                   rows_to_append.append(cleaned_result)
-            else:
-                return Response("No data found or an error occurred", status=400)
+        # Column mapping for better readability
+        replacements = {
+            'answers.answer': 'Dominant hand',
+            'crf.datetimescan': 'date time of scan',
+            'weight': 'weight(kg)',
+            'height': 'height(m)',
+            'rawdatapath': 'rawdata_path',
+            'kepreppath': 'keprep_path',
+            'kepostpath': 'kepost_path',
+            'bidspath': 'bids_path',
+            'freesurferpath': 'freesurfer_path'
+        }
 
-            rows_to_append.sort(key=lambda x: x[0])
-            for row in rows_to_append:
-                row.pop()
-            for row in rows_to_append:
-                ws.append(row)
+        column_names = ["scan_ids", "gui"] + [
+            replacements.get(col, col) for col in search_values.get_instance().get_data_output()
+        ]
+        column_names.pop()  # Remove the last column as in original code
 
-            # Create an Excel file in memory
-            excel_file = BytesIO()
-            wb.save(excel_file)
-            excel_file.seek(0)
-            search_values.get_instance().set_additinal_information('no')
-            return send_file(
-                excel_file,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                as_attachment=True,
-                download_name='path_results.csv'
-            )
+        # Execute query and get results
+        search_values.get_instance().set_additinal_information('yes')
+        search_values.get_instance().set_selected_patient_codes(codes_or_scanids_array)
+        results = search_values.get_instance().build_and_execute_query()
 
-        return Response("No data found or an error occurred", status=400)
+        if not results:
+            return Response("No data found or an error occurred", status=400)
+
+        # Process results into clean rows
+        rows = []
+        for result in results:
+            cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+            cleaned_result.pop()  # Remove last item as in original code
+            rows.append(cleaned_result)
+
+        # Create DataFrame and sort
+        df = pd.DataFrame(rows, columns=column_names)
+        df.sort_values(by='scan_ids', inplace=True)
+
+        # Export to CSV
+        csv_buffer = BytesIO()
+        df.to_csv(csv_buffer, index=False,  encoding='utf-8-sig')  # Ensure encoding
+        csv_buffer.seek(0)
+
+        return send_file(
+            csv_buffer,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='results.csv'
+        )
 
     elif detail_type == 'scanid':
-        if search_values.get_instance().connection:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Subject details at the time of the scan"
-            # Headers setup
-            replacements = {
-                'answers.answer': 'Dominant hand',
-                'crf.datetimescan': 'date time of scan',
-                'weight': 'weight(kg)',
-                'height': 'height(m)',
-                'kepreppath': 'keprep path',
-                'kepostpath': 'kepost path',
-                'freesurferpath': 'freesurfer path'
-            }
-            headers = ["scan_ids"]+["guid"]+["questionaire_code"]+ [replacements.get(col, col) for col in
-                                                               search_values.get_instance().get_data_output()]
-            append_and_color_header(ws, headers, "FFFFFF00")
-            search_values.get_instance().set_update_subjects('no')
-            search_values.get_instance().set_dominant_hand_post('yes')
-            # Query and populate data rows
-            rows_to_append = []
-            if are_codes_in_scanid_format(codes_or_scanids_array,'scan_id')==False:
-               return jsonify({'error': 'No valid scan ids provided'})
-            codes_or_scanids_array = [code.strip('[]') for code in codes_or_scanids_array]
-            search_values.get_instance().set_selected_scanids(codes_or_scanids_array)
+        if not search_values.get_instance().connection:
+            return Response("Database connection error", status=500)
+        search_values.get_instance().set_additinal_information('No')
+        # Column mapping
+        replacements = {
+            'answers.answer': 'Dominant hand',
+            'crf.datetimescan': 'date time of scan',
+            'weight': 'weight(kg)',
+            'height': 'height(m)',
+            'kepreppath': 'keprep path',
+            'kepostpath': 'kepost path',
+            'freesurferpath': 'freesurfer path'
+        }
 
-            results = search_values.get_instance().build_and_execute_query()
-            if results:
-               for result in results:
-                cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
-                rows_to_append.append(cleaned_result)
-            else:
-                return Response("No data found or an error occurred", status=400)
-            rows_to_append.sort(key=lambda x: x[0])
-            for row in rows_to_append:
-                ws.append(row)
+        column_names = ["scan_ids", "guid"] + [
+            replacements.get(col, col) for col in search_values.get_instance().get_data_output()
+        ]
 
-            # Create an Excel file in memory
-            excel_file = BytesIO()
-            wb.save(excel_file)
-            excel_file.seek(0)
-            return send_file(
-                excel_file,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                as_attachment=True,
-                download_name='results.xlsx'
-            )
+        # Validate scan IDs
+        if not are_codes_in_scanid_format(codes_or_scanids_array, 'scan_id'):
+            return jsonify({'error': 'No valid scan ids provided'})
 
-        return Response("No data found or an error occurred", status=400)
+        codes_or_scanids_array = [code.strip('[]') for code in codes_or_scanids_array]
+        search_values.get_instance().set_selected_scanids(codes_or_scanids_array)
+
+        # Execute query
+        results = search_values.get_instance().build_and_execute_query()
+
+        if not results:
+            return Response("No data found or an error occurred", status=400)
+
+        # Process results
+        rows = []
+        for result in results:
+            cleaned_result = [item for value in result for item in flatten_values(clean_value(value))]
+            rows.append(cleaned_result)
+
+        # Create DataFrame and sort
+        df = pd.DataFrame(rows, columns=column_names)
+        df.sort_values(by='scan_ids', inplace=True)
+
+        # Export to CSV
+        csv_buffer = BytesIO()
+        df.to_csv(csv_buffer, index=False,  encoding='utf-8-sig')  # Ensure encoding
+        csv_buffer.seek(0)
+
+        return send_file(
+            csv_buffer,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='results.csv'
+        )
+
+    return Response("Invalid detail type or request format", status=400)
 @app.route('/get_questions', methods=['GET'])
 def get_questions():
     category = request.args.get('category')

@@ -137,53 +137,37 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         function handleFileChange(input) {
-            var file = input.files[0];
-            if (file) {
-                document.getElementById('additionalDetails').value = `Uploaded file: ${file.name}`;
+            if (input.files.length > 0) {
+                document.getElementById('additionalDetails').value = `Uploaded file: ${input.files[0].name}`;
             }
         }
 
         function clearFileInput() {
-            document.getElementById('fileInput').value = '';
+            let fileInput = document.getElementById('fileInput');
+            if (fileInput) fileInput.value = '';
         }
 
         function updateSelectedQuestionNumbers() {
             $('#selectedQuestions option').each(function(index) {
-                var text = $(this).text();
-                var newText = (index + 1) + '. ' + text.substring(text.indexOf('.') + 2);
-                $(this).text(newText);
+                $(this).text((index + 1) + '. ' + $(this).text().split('. ').slice(1).join('. '));
             });
         }
 
-        function loadQuestionsForCategory(selectedCategory) {
-            if (selectedCategory) {
-                $.ajax({
-                    url: '/get_questions',
-                    type: 'GET',
-                    data: { category: selectedCategory },
-                    success: function(response) {
-                        if (response.questions) {
-                            var questionSelect = $('#questionOptions');
-                            questionSelect.empty();
-                            response.questions.forEach(function(question, index) {
-                                var questionId = question[0];
-                                var questionText = question[1];
-                                questionSelect.append($('<option>', {
-                                    value: questionId,
-                                    text: (index + 1) + '. ' + questionText
-                                }));
-                            });
-                        } else if (response.error) {
-                            $('#result').html('<p class="error">Error: ' + response.error + '</p>');
-                        }
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        $('#result').html('<p class="error">An error occurred while fetching questions.</p>');
-                    }
-                });
-            } else {
-                $('#questionOptions').empty();
-            }
+        function loadQuestionsForCategory(category) {
+            if (!category) return $('#questionOptions').empty();
+
+            $.get('/get_questions', { category: category }, function(response) {
+                let questionSelect = $('#questionOptions').empty();
+                if (response.questions) {
+                    response.questions.forEach((q, index) => {
+                        questionSelect.append(new Option((index + 1) + '. ' + q[1], q[0]));
+                    });
+                } else {
+                    $('#result').html(`<p class="error">Error: ${response.error || 'Failed to fetch questions'}</p>`);
+                }
+            }).fail(function() {
+                $('#result').html('<p class="error">An error occurred while fetching questions.</p>');
+            });
         }
 
         $('#categoryOptions').change(function() {
@@ -192,15 +176,9 @@
 
         $('#addQuestion').click(function() {
             $('#questionOptions option:selected').each(function() {
-                var selectedOption = $(this);
-                var optionValue = selectedOption.val();
-                var optionText = selectedOption.text();
-
-                if ($('#selectedQuestions option[value="' + optionValue + '"]').length === 0) {
-                    $('#selectedQuestions').append($('<option>', {
-                        value: optionValue,
-                        text: optionText
-                    }));
+                let option = $(this);
+                if (!$('#selectedQuestions option[value="' + option.val() + '"]').length) {
+                    $('#selectedQuestions').append(new Option(option.text(), option.val()));
                 }
             });
             updateSelectedQuestionNumbers();
@@ -213,12 +191,8 @@
 
         $('#academicForm').submit(function(event) {
             event.preventDefault();
-            var formData = new FormData(this);
-
-            var selectedQuestions = [];
-            $('#selectedQuestions option').each(function() {
-                selectedQuestions.push($(this).val());
-            });
+            let formData = new FormData(this);
+            let selectedQuestions = $('#selectedQuestions option').map((_, el) => el.value).get();
             formData.append('selectedQuestions', JSON.stringify(selectedQuestions));
 
             $.ajax({
@@ -227,26 +201,26 @@
                 data: formData,
                 processData: false,
                 contentType: false,
-                xhrFields: {
-                    responseType: 'blob'
-                },
+                xhrFields: { responseType: 'blob' },
                 success: function(response, status, xhr) {
-                    var contentType = xhr.getResponseHeader('content-type');
-                    if (contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-                        var blob = new Blob([response], { type: contentType });
-                        var link = document.createElement('a');
-                        link.href = window.URL.createObjectURL(blob);
+                    let contentType = xhr.getResponseHeader('content-type');
+                    if (contentType.includes('spreadsheet') || contentType.includes('csv')) {
+                        let blob = new Blob([response], { type: contentType });
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
                         link.download = 'path_results.csv';
+                        document.body.appendChild(link);
                         link.click();
-                        $('#result').html('<p class="success">Excel file generated and downloaded successfully.</p>');
+                        document.body.removeChild(link);
+                        $('#result').html('<p class="success">CSV file downloaded successfully.</p>');
                     } else {
-                        var reader = new FileReader();
+                        let reader = new FileReader();
                         reader.onload = function() {
-                            var jsonResponse = JSON.parse(reader.result);
-                            if (jsonResponse.error) {
-                                $('#result').html('<p class="error">Error: ' + jsonResponse.error + '</p>');
-                            } else {
-                                $('#result').html('<p class="success">Upload successful. ' + jsonResponse.message + '</p>');
+                            try {
+                                let jsonResponse = JSON.parse(reader.result);
+                                $('#result').html(`<p class="${jsonResponse.error ? 'error' : 'success'}">${jsonResponse.error || jsonResponse.message}</p>`);
+                            } catch {
+                                $('#result').html('<p class="error">Unexpected response from server.</p>');
                             }
                         };
                         reader.readAsText(response);
@@ -258,16 +232,16 @@
             });
         });
 
-        document.getElementById('fileInput').addEventListener('change', function() {
+        $('#fileInput').change(function() {
             handleFileChange(this);
         });
 
-        document.getElementById('additionalDetails').addEventListener('input', clearFileInput);
+        $('#additionalDetails').on('input', clearFileInput);
     });
-     function goBack() {
-           window.location.href = '/HomePage';
-     }
 
+    function goBack() {
+        window.location.href = '/HomePage';
+    }
 </script>
 </body>
 </html>

@@ -355,7 +355,7 @@ class search_values:
         where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
         if self.additinal_information=='yes':
-            where_clause=f"""WHERE crf.guid IN (SELECT guid FROM crf WHERE crf.scanid IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))}))"""
+            where_clause=f"""WHERE crf.guid IN (SELECT guid FROM crf WHERE crf.questionairecode IN ({', '.join(map(repr, self.query_values['selected_patient_codes']))}))"""
 
 
         if self.update_subjects == 'yes':
